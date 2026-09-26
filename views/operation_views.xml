@@ -219,4 +219,35 @@
         </field>
     </record>
 
+    <!-- Phase 2: recent operation lists reuse existing tree/form views -->
+    <record id="action_operation_recent_receipts" model="ir.actions.act_window">
+        <field name="name">Recent Receipts</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'receipt')]</field>
+        <field name="context">{'default_operation_type': 'receipt'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
+    </record>
+
+    <record id="action_operation_recent_deliveries" model="ir.actions.act_window">
+        <field name="name">Recent Deliveries</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'delivery')]</field>
+        <field name="context">{'default_operation_type': 'delivery'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
+    </record>
+
+    <record id="action_operation_recent_transfers" model="ir.actions.act_window">
+        <field name="name">Recent Internal Transfers</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'internal')]</field>
+        <field name="context">{'default_operation_type': 'internal'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
+    </record>
+
 </odoo>

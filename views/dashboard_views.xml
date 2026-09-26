@@ -62,6 +62,69 @@
                             </p>
                         </div>
                     </group>
+                    <group string="Stock Analytics">
+                        <div>
+                            <p>
+                                Graphs aggregate SUM(quantity) of internal stock only.
+                                Locations are exact rows (no parent/child rollup).
+                                Category totals group by the stored quantity field;
+                                UoMs may differ across products, so group totals are
+                                not universally comparable quantities.
+                            </p>
+                        </div>
+                    </group>
+                    <group string="Stock Analytics" colspan="2">
+                        <div class="oe_button_box" name="stock_analytics">
+                            <button name="action_open_stock_by_warehouse" type="object"
+                                    class="oe_stat_button" icon="fa-bar-chart">
+                                <span>Stock by Warehouse</span>
+                            </button>
+                            <button name="action_open_stock_by_location" type="object"
+                                    class="oe_stat_button" icon="fa-map-marker">
+                                <span>Stock by Location</span>
+                            </button>
+                            <button name="action_open_stock_by_category" type="object"
+                                    class="oe_stat_button" icon="fa-tags">
+                                <span>Stock by Category</span>
+                            </button>
+                        </div>
+                    </group>
+                    <group string="Recent Activity" colspan="2">
+                        <div class="oe_button_box" name="recent_activity">
+                            <button name="action_view_recent_movements" type="object"
+                                    class="oe_stat_button" icon="fa-list">
+                                <span>Recent Movements</span>
+                            </button>
+                            <button name="action_view_recent_receipts" type="object"
+                                    class="oe_stat_button" icon="fa-download">
+                                <span>Recent Receipts</span>
+                            </button>
+                            <button name="action_view_recent_deliveries" type="object"
+                                    class="oe_stat_button" icon="fa-upload">
+                                <span>Recent Deliveries</span>
+                            </button>
+                            <button name="action_view_recent_transfers" type="object"
+                                    class="oe_stat_button" icon="fa-exchange">
+                                <span>Recent Transfers</span>
+                            </button>
+                        </div>
+                    </group>
+                    <group string="Alerts" colspan="2">
+                        <div class="oe_button_box" name="alerts">
+                            <button name="action_view_low_stock" type="object"
+                                    class="oe_stat_button" icon="fa-exclamation-triangle">
+                                <field name="low_stock_count" string="Low Stock" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_out_of_stock" type="object"
+                                    class="oe_stat_button" icon="fa-times-circle">
+                                <field name="out_of_stock_count" string="Out of Stock" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_reorder_needed" type="object"
+                                    class="oe_stat_button" icon="fa-refresh">
+                                <field name="reorder_needed_count" string="Reorder Needed" widget="statinfo"/>
+                            </button>
+                        </div>
+                    </group>
                 </sheet>
             </form>
         </field>

@@ -110,4 +110,33 @@
         </field>
     </record>
 
+    <!-- Phase 2: recent movements (newest first, clickable tree) -->
+    <record id="view_movement_recent_tree" model="ir.ui.view">
+        <field name="name">stocksense.movement.recent.tree</field>
+        <field name="model">stocksense.movement</field>
+        <field name="arch" type="xml">
+            <tree string="Recent Stock Movements" create="0" edit="0" delete="0"
+                  default_order="date desc, id desc" limit="10">
+                <field name="date"/>
+                <field name="product_id"/>
+                <field name="product_sku"/>
+                <field name="movement_type"/>
+                <field name="quantity"/>
+                <field name="source_location_id"/>
+                <field name="destination_location_id"/>
+                <field name="operation_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_movement_recent" model="ir.actions.act_window">
+        <field name="name">Recent Stock Movements</field>
+        <field name="res_model">stocksense.movement</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_movement_recent_tree"/>
+        <field name="search_view_id" ref="view_movement_search"/>
+        <field name="limit">10</field>
+        <field name="context">{'search_default_group_date': 0}</field>
+    </record>
+
 </odoo>

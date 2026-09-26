@@ -294,6 +294,129 @@ class StockSenseDashboard(models.TransientModel):
             'Pending Deliveries', 'stocksense.operation', self._operation_domain('delivery')
         )
 
+    # PHASE 2 - Analytics (stored fields, read-only).
+    # Stock rows are exact product@location; no hierarchy rollup.
+    RECENT_LIMIT = 10
+
+    def _recent_movement_domain(self):
+        self.ensure_one()
+        domain = []
+        category_ids = self._get_category_ids()
+        if category_ids:
+            domain.append(('product_category_id', 'in', category_ids))
+        if self.warehouse_id:
+            wid = self.warehouse_id.id
+            domain += [
+                '|',
+                ('source_location_id.warehouse_id', '=', wid),
+                ('destination_location_id.warehouse_id', '=', wid),
+            ]
+        if self.location_id:
+            lid = self.location_id.id
+            domain += [
+                '|',
+                ('source_location_id', '=', lid),
+                ('destination_location_id', '=', lid),
+            ]
+        return domain
+
+    def _recent_operation_domain(self, operation_type):
+        """Recent ops of a type, all states unless filter_state narrows."""
+        self.ensure_one()
+        domain = [('operation_type', '=', operation_type)]
+        if self.filter_state and self.filter_state != 'all':
+            domain.append(('state', '=', self.filter_state))
+        if self.warehouse_id:
+            wid = self.warehouse_id.id
+            if operation_type == 'receipt':
+                domain.append(('destination_location_id.warehouse_id', '=', wid))
+            elif operation_type == 'delivery':
+                domain.append(('source_location_id.warehouse_id', '=', wid))
+            else:
+                domain += [
+                    '|',
+                    ('source_location_id.warehouse_id', '=', wid),
+                    ('destination_location_id.warehouse_id', '=', wid),
+                ]
+        if self.location_id:
+            lid = self.location_id.id
+            if operation_type == 'receipt':
+                domain.append(('destination_location_id', '=', lid))
+            elif operation_type == 'delivery':
+                domain.append(('source_location_id', '=', lid))
+            else:
+                domain += [
+                    '|',
+                    ('source_location_id', '=', lid),
+                    ('destination_location_id', '=', lid),
+                ]
+        category_ids = self._get_category_ids()
+        if category_ids:
+            domain.append(('line_ids.product_id.category_id', 'in', category_ids))
+        return domain
+
+    def get_stock_by_warehouse(self):
+        """SUM(quantity) grouped by warehouse (internal only)."""
+        self.ensure_one()
+        return self.env['stocksense.stock'].read_group(
+            self._stock_domain(), ['warehouse_id', 'quantity'], ['warehouse_id']
+        )
+
+    def get_stock_by_location(self):
+        """SUM(quantity) grouped by exact location (no rollup)."""
+        self.ensure_one()
+        return self.env['stocksense.stock'].read_group(
+            self._stock_domain(), ['location_id', 'quantity'], ['location_id']
+        )
+
+    def get_stock_by_category(self):
+        """SUM(quantity) grouped by stored product_category_id."""
+        self.ensure_one()
+        return self.env['stocksense.stock'].read_group(
+            self._stock_domain(),
+            ['product_category_id', 'quantity'],
+            ['product_category_id'],
+        )
+
+    def get_recent_movements(self, limit=None):
+        self.ensure_one()
+        return self.env['stocksense.movement'].search(
+            self._recent_movement_domain(),
+            order='date desc, id desc',
+            limit=limit or self.RECENT_LIMIT,
+        )
+
+    def get_recent_operations(self, operation_type, limit=None):
+        self.ensure_one()
+        return self.env['stocksense.operation'].search(
+            self._recent_operation_domain(operation_type),
+            order='date desc, id desc',
+            limit=limit or self.RECENT_LIMIT,
+        )
+
+    def get_low_stock_records(self, limit=None):
+        self.ensure_one()
+        domain = self._stock_domain() + [('is_below_reorder', '=', True)]
+        if limit:
+            return self.env['stocksense.stock'].search(domain, limit=limit)
+        return self.env['stocksense.stock'].search(domain)
+
+    def get_out_of_stock_products(self):
+        self.ensure_one()
+        totals = self._aggregated_qty_by_product()
+        product_ids = [pid for pid, qty in totals.items() if qty <= 0]
+        if not self.warehouse_id and not self.location_id:
+            all_ids = self.env['stocksense.product'].search(self._product_domain()).ids
+            product_ids += [pid for pid in all_ids if pid not in totals]
+        if not product_ids:
+            return self.env['stocksense.product'].browse([])
+        return self.env['stocksense.product'].search([('id', 'in', product_ids)])
+
+    def get_reorder_needed_records(self):
+        self.ensure_one()
+        domain = self._reorder_rule_domain() + [('is_triggered', '=', True)]
+        return self.env['stocksense.reorder.rule'].search(domain)
+
     def action_view_internal_transfers(self):
         self.ensure_one()
         return self._action_for(
@@ -301,6 +424,95 @@ class StockSenseDashboard(models.TransientModel):
             'stocksense.operation',
             self._operation_domain('internal'),
         )
+
+    def _limited_action(self, name, res_model, domain):
+        action = self._action_for(name, res_model, domain)
+        action['limit'] = self.RECENT_LIMIT
+        return action
+
+    def action_open_stock_by_warehouse(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Stock by Warehouse (SUM of internal stock)',
+            'res_model': 'stocksense.stock',
+            'view_mode': 'graph,pivot,tree,form',
+            'views': [
+                (self.env.ref('stocksense.view_stock_warehouse_graph').id, 'graph'),
+                (self.env.ref('stocksense.view_stock_warehouse_pivot').id, 'pivot'),
+                (False, 'tree'),
+                (False, 'form'),
+            ],
+            'domain': self._stock_domain(),
+            'context': {'group_by': ['warehouse_id']},
+            'target': 'current',
+        }
+
+    def action_open_stock_by_location(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Stock by Location (exact locations, no rollup)',
+            'res_model': 'stocksense.stock',
+            'view_mode': 'graph,pivot,tree,form',
+            'views': [
+                (self.env.ref('stocksense.view_stock_location_graph').id, 'graph'),
+                (self.env.ref('stocksense.view_stock_location_pivot').id, 'pivot'),
+                (False, 'tree'),
+                (False, 'form'),
+            ],
+            'domain': self._stock_domain(),
+            'context': {'group_by': ['location_id']},
+            'target': 'current',
+        }
+
+    def action_open_stock_by_category(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Stock by Category (stored qty; mixed UoMs not comparable)',
+            'res_model': 'stocksense.stock',
+            'view_mode': 'graph,pivot,tree,form',
+            'views': [
+                (self.env.ref('stocksense.view_stock_category_graph').id, 'graph'),
+                (self.env.ref('stocksense.view_stock_category_pivot').id, 'pivot'),
+                (False, 'tree'),
+                (False, 'form'),
+            ],
+            'domain': self._stock_domain(),
+            'context': {'group_by': ['product_category_id']},
+            'target': 'current',
+        }
+
+    def action_view_recent_movements(self):
+        self.ensure_one()
+        return self._limited_action(
+            'Recent Stock Movements', 'stocksense.movement', self._recent_movement_domain()
+        )
+
+    def action_view_recent_receipts(self):
+        self.ensure_one()
+        return self._limited_action(
+            'Recent Receipts', 'stocksense.operation', self._recent_operation_domain('receipt')
+        )
+
+    def action_view_recent_deliveries(self):
+        self.ensure_one()
+        return self._limited_action(
+            'Recent Deliveries',
+            'stocksense.operation',
+            self._recent_operation_domain('delivery'),
+        )
+
+    def action_view_recent_transfers(self):
+        self.ensure_one()
+        return self._limited_action(
+            'Recent Internal Transfers',
+            'stocksense.operation',
+            self._recent_operation_domain('internal'),
+        )
+
+
 
 
 
