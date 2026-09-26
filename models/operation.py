@@ -7,15 +7,11 @@ from odoo.exceptions import UserError, ValidationError
 class StockSenseOperation(models.Model):
     """Inventory operation / business document.
 
-    Represents a business intent such as receiving goods, shipping an order,
-    transferring stock between locations, or adjusting inventory counts.
-
-    Operations follow a strict lifecycle:
-        draft → confirmed → done (or cancelled at any point before done)
-
-    When an operation transitions to 'done', it creates the corresponding
-    inventory movement(s) and updates stock balances.
+    Supports receipts, deliveries, internal transfers, and adjustments.
+    Operations can contain multiple product lines and follow a lifecycle:
+    draft -> confirmed -> done (or cancelled before completion).
     """
+
     _name = 'stocksense.operation'
     _description = 'Inventory Operation'
     _order = 'date desc, id desc'
@@ -41,6 +37,16 @@ class StockSenseOperation(models.Model):
         required=True,
         index=True,
         tracking=True,
+    )
+
+    adjustment_type = fields.Selection(
+        selection=[
+            ('gain', 'Stock Gain'),
+            ('loss', 'Stock Loss'),
+        ],
+        string='Adjustment Direction',
+        tracking=True,
+        help='Explicit direction for inventory adjustment operations.',
     )
 
     state = fields.Selection(
@@ -72,17 +78,31 @@ class StockSenseOperation(models.Model):
         copy=False,
     )
 
+    # Multi-product operation lines
+    line_ids = fields.One2many(
+        'stocksense.operation.line',
+        'operation_id',
+        string='Operation Lines',
+        copy=True,
+    )
+
+    # Computed primary product and total quantity for summaries
+    # and backward compatibility.
     product_id = fields.Many2one(
         'stocksense.product',
-        string='Product',
-        required=True,
+        string='Primary Product',
+        compute='_compute_summary_fields',
+        store=True,
+        readonly=True,
         index=True,
         tracking=True,
     )
 
     quantity = fields.Float(
-        string='Quantity',
-        required=True,
+        string='Total Quantity',
+        compute='_compute_summary_fields',
+        store=True,
+        readonly=True,
         digits=(12, 2),
         tracking=True,
     )
@@ -168,6 +188,18 @@ class StockSenseOperation(models.Model):
         readonly=True,
     )
 
+    @api.depends('line_ids.product_id', 'line_ids.quantity')
+    def _compute_summary_fields(self):
+        for operation in self:
+            if operation.line_ids:
+                operation.product_id = operation.line_ids[0].product_id
+                operation.quantity = sum(
+                    line.quantity for line in operation.line_ids
+                )
+            else:
+                operation.product_id = False
+                operation.quantity = 0.0
+
     def _compute_movement_count(self):
         for operation in self:
             operation.movement_count = len(operation.movement_ids)
@@ -176,7 +208,7 @@ class StockSenseOperation(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Assign sequence-based reference on creation."""
+        """Assign a sequence and support legacy single-product creation."""
         for vals in vals_list:
             if vals.get('name', 'New') == 'New':
                 op_type = vals.get('operation_type', 'receipt')
@@ -184,6 +216,27 @@ class StockSenseOperation(models.Model):
                 vals['name'] = (
                     self.env['ir.sequence'].next_by_code(seq_code) or 'New'
                 )
+
+            # Convert legacy product_id/quantity values into an operation line.
+            if (
+                ('product_id' in vals or 'quantity' in vals)
+                and not vals.get('line_ids')
+            ):
+                product_id = vals.get('product_id')
+                quantity = vals.get('quantity', 1.0)
+
+                if product_id:
+                    vals['line_ids'] = [
+                        (0, 0, {
+                            'product_id': product_id,
+                            'quantity': quantity,
+                        })
+                    ]
+
+                # These are computed fields and must not be assigned directly.
+                vals.pop('product_id', None)
+                vals.pop('quantity', None)
+
         return super().create(vals_list)
 
     def unlink(self):
@@ -201,7 +254,7 @@ class StockSenseOperation(models.Model):
     @api.constrains('quantity')
     def _check_quantity_positive(self):
         for operation in self:
-            if operation.quantity <= 0:
+            if operation.line_ids and operation.quantity <= 0:
                 raise ValidationError(
                     'Quantity must be a positive number (got %.2f).'
                     % operation.quantity
@@ -211,58 +264,90 @@ class StockSenseOperation(models.Model):
         'source_location_id',
         'destination_location_id',
         'operation_type',
+        'adjustment_type',
     )
     def _check_locations(self):
-        """Validate location requirements based on operation type."""
-        for op in self:
-            if op.operation_type == 'receipt':
-                if not op.destination_location_id:
+        """Validate locations and adjustment direction."""
+        for operation in self:
+            if operation.operation_type == 'receipt':
+                if not operation.destination_location_id:
                     raise ValidationError(
                         'Receipt operations require a destination location.'
                     )
-                if op.destination_location_id.location_type != 'internal':
+                if operation.destination_location_id.location_type != 'internal':
                     raise ValidationError(
                         'Receipt destination must be an internal location.'
                     )
 
-            elif op.operation_type == 'delivery':
-                if not op.source_location_id:
+            elif operation.operation_type == 'delivery':
+                if not operation.source_location_id:
                     raise ValidationError(
                         'Delivery operations require a source location.'
                     )
-                if op.source_location_id.location_type != 'internal':
+                if operation.source_location_id.location_type != 'internal':
                     raise ValidationError(
                         'Delivery source must be an internal location.'
                     )
 
-            elif op.operation_type == 'internal':
+            elif operation.operation_type == 'internal':
                 if (
-                    not op.source_location_id
-                    or not op.destination_location_id
+                    not operation.source_location_id
+                    or not operation.destination_location_id
                 ):
                     raise ValidationError(
                         'Internal transfers require both source and '
                         'destination locations.'
                     )
-                if op.source_location_id == op.destination_location_id:
+
+                if (
+                    operation.source_location_id
+                    == operation.destination_location_id
+                ):
                     raise ValidationError(
                         'Cannot transfer stock from a location to itself.'
                     )
-                if op.source_location_id.location_type != 'internal':
+
+                if operation.source_location_id.location_type != 'internal':
                     raise ValidationError(
                         'Transfer source must be an internal location.'
                     )
-                if op.destination_location_id.location_type != 'internal':
+
+                if operation.destination_location_id.location_type != 'internal':
                     raise ValidationError(
                         'Transfer destination must be an internal location.'
                     )
 
-            elif op.operation_type == 'adjustment':
-                if not op.destination_location_id:
+            elif operation.operation_type == 'adjustment':
+                if not operation.adjustment_type:
                     raise ValidationError(
-                        'Adjustment operations require a target location '
-                        '(destination for gain, source for loss).'
+                        'Adjustment operations require an explicit '
+                        'direction (gain or loss).'
                     )
+
+                if operation.adjustment_type == 'gain':
+                    if not operation.destination_location_id:
+                        raise ValidationError(
+                            'Stock Gain adjustment requires a target '
+                            'destination location.'
+                        )
+                    if (
+                        operation.destination_location_id.location_type
+                        != 'internal'
+                    ):
+                        raise ValidationError(
+                            'Stock Gain destination must be an internal '
+                            'location.'
+                        )
+
+                elif operation.adjustment_type == 'loss':
+                    if not operation.source_location_id:
+                        raise ValidationError(
+                            'Stock Loss adjustment requires a source location.'
+                        )
+                    if operation.source_location_id.location_type != 'internal':
+                        raise ValidationError(
+                            'Stock Loss source must be an internal location.'
+                        )
 
     # State Transitions
 
@@ -271,17 +356,23 @@ class StockSenseOperation(models.Model):
         for operation in self:
             if operation.state != 'draft':
                 raise UserError('Only draft operations can be confirmed.')
+
+            if not operation.line_ids:
+                raise ValidationError(
+                    'Operation %s must contain at least one operation line.'
+                    % operation.name
+                )
+
             operation.state = 'confirmed'
 
     def action_validate(self):
-        """Validate the operation: transition to done, create movements,
-        and update stock.
-        """
+        """Validate the operation and create its stock movements."""
         for operation in self:
             if operation.state not in ('draft', 'confirmed'):
                 raise UserError(
                     'Only draft or confirmed operations can be validated.'
                 )
+
             operation._create_movements()
             operation.write({
                 'state': 'done',
@@ -309,104 +400,131 @@ class StockSenseOperation(models.Model):
 
     # Movement Creation (Core Business Logic)
 
-    def _create_movements(self):
-        """Create inventory movement(s) for this operation.
+    def _get_location_ref(self, xml_id):
+        """Fetch a virtual location regardless of module name casing."""
+        try:
+            return self.env.ref('StockSense.' + xml_id)
+        except ValueError:
+            return self.env.ref('stocksense.' + xml_id)
 
-        Each operation type resolves to a specific source/destination pair.
-        The movement is then created and stock balances are updated atomically.
-        """
+    def _create_movements(self):
+        """Create one inventory movement for each operation line."""
         self.ensure_one()
+
+        if not self.line_ids:
+            raise ValidationError(
+                'Operation %s must contain at least one operation line.'
+                % self.name
+            )
+
+        # Movement creation uses sudo because the operation workflow
+        # is authorized to create ledger entries, while direct movement
+        # creation remains restricted by access controls.
         Movement = self.env['stocksense.movement'].sudo()
 
         if self.operation_type == 'receipt':
-            # Supplier (virtual) → Internal location
-            supplier_loc = self.env.ref('stocksense.location_suppliers')
+            supplier_loc = self._get_location_ref('location_suppliers')
             source = self.source_location_id or supplier_loc
             destination = self.destination_location_id
             move_type = 'receipt'
 
         elif self.operation_type == 'delivery':
-            # Internal location → Customer (virtual)
-            customer_loc = self.env.ref('stocksense.location_customers')
+            customer_loc = self._get_location_ref('location_customers')
             source = self.source_location_id
             destination = self.destination_location_id or customer_loc
             move_type = 'delivery'
 
         elif self.operation_type == 'internal':
-            # Internal location → Internal location
             source = self.source_location_id
             destination = self.destination_location_id
             move_type = 'internal'
 
-            # Check sufficient stock at source
-            self._check_stock_availability(source)
-
         elif self.operation_type == 'adjustment':
-            adjustment_loc = self.env.ref('stocksense.location_adjustment')
-            target = self.destination_location_id
+            adjustment_loc = self._get_location_ref(
+                'location_adjustment'
+            )
 
-            # Determine if this is stock gain or loss based on quantity context
-            # Positive qty on an adjustment = stock correction at the target location
-            # We'll use reason field to differentiate, but by default treat as stock-in
-            # For stock loss, user creates an adjustment with source = internal location
-            if (
-                self.source_location_id
-                and self.source_location_id.location_type == 'internal'
-            ):
-                # Stock loss: internal → adjustment virtual
+            if not self.adjustment_type:
+                raise ValidationError(
+                    'Adjustment operations require an explicit direction '
+                    '(gain or loss).'
+                )
+
+            if self.adjustment_type == 'gain':
+                source = adjustment_loc
+                destination = self.destination_location_id
+                move_type = 'adjustment_in'
+
+            elif self.adjustment_type == 'loss':
                 source = self.source_location_id
                 destination = adjustment_loc
                 move_type = 'adjustment_out'
-                self._check_stock_availability(source)
+
             else:
-                # Stock gain: adjustment virtual → internal
-                source = adjustment_loc
-                destination = target
-                move_type = 'adjustment_in'
+                raise UserError(
+                    'Unknown adjustment type: %s' % self.adjustment_type
+                )
+
         else:
             raise UserError(
                 'Unknown operation type: %s' % self.operation_type
             )
 
-        # Create the movement record
-        movement = Movement.create({
-            'product_id': self.product_id.id,
-            'source_location_id': source.id,
-            'destination_location_id': destination.id,
-            'quantity': self.quantity,
-            'movement_type': move_type,
-            'operation_id': self.id,
-            'user_id': self.env.user.id,
-            'reason': self.reason,
-        })
+        # Check total required quantity per product before creating
+        # any movements.
+        if source and source.location_type == 'internal':
+            self._check_all_lines_stock_availability(source)
 
-        # Update stock balances
-        movement._update_stock_balances()
+        movements = self.env['stocksense.movement']
+        for line in self.line_ids:
+            movement = Movement.create({
+                'product_id': line.product_id.id,
+                'source_location_id': source.id,
+                'destination_location_id': destination.id,
+                'quantity': line.quantity,
+                'movement_type': move_type,
+                'operation_id': self.id,
+                'operation_line_id': line.id,
+                'user_id': self.env.user.id,
+                'reason': self.reason,
+            })
+            movement._update_stock_balances()
+            movements |= movement
 
-        return movement
+        return movements
 
-    def _check_stock_availability(self, location):
-        """Verify sufficient stock exists at the given location."""
+    def _check_all_lines_stock_availability(self, location):
+        """Check sufficient stock for all lines, grouped by product."""
         self.ensure_one()
-        stock = self.env['stocksense.stock'].search([
-            ('product_id', '=', self.product_id.id),
-            ('location_id', '=', location.id),
-        ], limit=1)
 
-        available = stock.quantity if stock else 0.0
-        if available < self.quantity:
-            raise UserError(
-                'Insufficient stock at %s.\n'
-                'Available: %.2f %s\n'
-                'Required: %.2f %s'
-                % (
-                    location.complete_name or location.name,
-                    available,
-                    self.product_id.uom,
-                    self.quantity,
-                    self.product_id.uom,
-                )
+        needed_by_product = {}
+        for line in self.line_ids:
+            product = line.product_id
+            needed_by_product[product] = (
+                needed_by_product.get(product, 0.0) + line.quantity
             )
+
+        for product, needed in needed_by_product.items():
+            stock = self.env['stocksense.stock'].search([
+                ('product_id', '=', product.id),
+                ('location_id', '=', location.id),
+            ], limit=1)
+
+            available = stock.quantity if stock else 0.0
+            if available < needed:
+                raise UserError(
+                    'Insufficient stock at %s for product "%s".\n'
+                    'Available: %.2f %s\n'
+                    'Required: %.2f %s'
+                    % (
+                        location.complete_name or location.name,
+                        product.name,
+                        available,
+                        product.uom,
+                        needed,
+                        product.uom,
+                    )
+                )
 
     def action_view_movements(self):
         """Open movements created by this operation."""

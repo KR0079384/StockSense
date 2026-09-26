@@ -99,4 +99,73 @@
         </field>
     </record>
 
+    <!-- Phase 2 Analytics: stock by warehouse (stored fields only) -->
+    <record id="view_stock_warehouse_graph" model="ir.ui.view">
+        <field name="name">stocksense.stock.warehouse.graph</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <graph string="Stock by Warehouse" type="bar">
+                <field name="warehouse_id"/>
+                <field name="quantity" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_stock_warehouse_pivot" model="ir.ui.view">
+        <field name="name">stocksense.stock.warehouse.pivot</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock by Warehouse" disable_linking="0">
+                <field name="warehouse_id" type="row"/>
+                <field name="quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Phase 2: stock by exact location (no hierarchy rollup) -->
+    <record id="view_stock_location_graph" model="ir.ui.view">
+        <field name="name">stocksense.stock.location.graph</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <graph string="Stock by Location" type="bar">
+                <field name="location_id"/>
+                <field name="quantity" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_stock_location_pivot" model="ir.ui.view">
+        <field name="name">stocksense.stock.location.pivot</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock by Location" disable_linking="0">
+                <field name="location_id" type="row"/>
+                <field name="quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Phase 2: stock by category (stored product_category_id) -->
+    <record id="view_stock_category_graph" model="ir.ui.view">
+        <field name="name">stocksense.stock.category.graph</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <graph string="Stock by Category" type="bar">
+                <field name="product_category_id"/>
+                <field name="quantity" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_stock_category_pivot" model="ir.ui.view">
+        <field name="name">stocksense.stock.category.pivot</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <pivot string="Stock by Category" disable_linking="0">
+                <field name="product_category_id" type="row"/>
+                <field name="quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
 </odoo>

@@ -35,8 +35,8 @@
                         <group>
                             <field name="location_type"/>
                             <field name="warehouse_id"
-                                   required="location_type == 'internal'"
-                                   invisible="location_type != 'internal'"/>
+                                   invisible="location_type != 'internal'"
+                                   required="location_type == 'internal'"/>
                             <field name="parent_id"/>
                         </group>
                         <group>

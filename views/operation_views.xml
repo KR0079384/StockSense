@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
@@ -13,8 +14,10 @@
                   decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="operation_type"/>
-                <field name="product_id"/>
-                <field name="quantity"/>
+                <field name="adjustment_type"
+                       invisible="operation_type != 'adjustment'"/>
+                <field name="product_id" string="Primary Product"/>
+                <field name="quantity" string="Total Quantity"/>
                 <field name="uom"/>
                 <field name="source_location_id"/>
                 <field name="destination_location_id"/>
@@ -86,23 +89,30 @@
                         <group string="Operation Details">
                             <field name="operation_type"
                                    readonly="state != 'draft'"/>
+                            <field name="adjustment_type"
+                                   invisible="operation_type != 'adjustment'"
+                                   required="operation_type == 'adjustment'"
+                                   readonly="state != 'draft'"/>
                             <field name="product_id"
                                    readonly="state != 'draft'"/>
                             <field name="quantity"
                                    readonly="state != 'draft'"/>
                             <field name="uom"/>
+                            <field name="partner_name"
+                                   invisible="operation_type not in ['receipt', 'delivery']"
+                                   readonly="state != 'draft'"/>
                         </group>
 
                         <group string="Locations">
                             <field name="source_location_id"
                                    readonly="state != 'draft'"
-                                   invisible="operation_type == 'receipt'"
-                                   required="operation_type in ['delivery', 'internal']"/>
+                                   invisible="operation_type == 'receipt' or (operation_type == 'adjustment' and adjustment_type == 'gain')"
+                                   required="operation_type in ['delivery', 'internal'] or (operation_type == 'adjustment' and adjustment_type == 'loss')"/>
 
                             <field name="destination_location_id"
                                    readonly="state != 'draft'"
-                                   invisible="operation_type == 'delivery'"
-                                   required="operation_type in ['receipt', 'internal', 'adjustment']"/>
+                                   invisible="operation_type == 'delivery' or (operation_type == 'adjustment' and adjustment_type == 'loss')"
+                                   required="operation_type in ['receipt', 'internal'] or (operation_type == 'adjustment' and adjustment_type == 'gain')"/>
                         </group>
                     </group>
 
@@ -114,7 +124,6 @@
                             <field name="responsible_user_id"
                                    readonly="state != 'draft'"/>
                         </group>
-
                         <group string="Additional Info">
                             <field name="partner_name"
                                    readonly="state != 'draft'"
@@ -123,6 +132,17 @@
                     </group>
 
                     <notebook>
+                        <page string="Products &amp; Quantities">
+                            <field name="line_ids"
+                                   readonly="state != 'draft'">
+                                <tree editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="uom"/>
+                                </tree>
+                            </field>
+                        </page>
+
                         <page string="Reason / Notes">
                             <field name="reason"
                                    readonly="state != 'draft'"
@@ -135,6 +155,7 @@
                                 <tree>
                                     <field name="date"/>
                                     <field name="movement_type"/>
+                                    <field name="product_id"/>
                                     <field name="source_location_id"/>
                                     <field name="destination_location_id"/>
                                     <field name="quantity"/>
@@ -187,6 +208,13 @@
                         name="adjustments"
                         domain="[('operation_type', '=', 'adjustment')]"/>
 
+                <filter string="Stock Gain"
+                        name="gain_adjustments"
+                        domain="[('operation_type', '=', 'adjustment'), ('adjustment_type', '=', 'gain')]"/>
+                <filter string="Stock Loss"
+                        name="loss_adjustments"
+                        domain="[('operation_type', '=', 'adjustment'), ('adjustment_type', '=', 'loss')]"/>
+
                 <separator/>
 
                 <filter string="Draft"
@@ -224,6 +252,9 @@
                     <filter string="Type"
                             name="group_type"
                             context="{'group_by': 'operation_type'}"/>
+                    <filter string="Adjustment Direction"
+                            name="group_adjustment_type"
+                            context="{'group_by': 'adjustment_type'}"/>
                     <filter string="Status"
                             name="group_state"
                             context="{'group_by': 'state'}"/>
@@ -319,6 +350,40 @@
             </p>
             <p>Correct stock levels after physical counts or for loss/damage.</p>
         </field>
+    </record>
+
+    <!-- Recent operation lists -->
+    <record id="action_operation_recent_receipts"
+            model="ir.actions.act_window">
+        <field name="name">Recent Receipts</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'receipt')]</field>
+        <field name="context">{'default_operation_type': 'receipt'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
+    </record>
+
+    <record id="action_operation_recent_deliveries"
+            model="ir.actions.act_window">
+        <field name="name">Recent Deliveries</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'delivery')]</field>
+        <field name="context">{'default_operation_type': 'delivery'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
+    </record>
+
+    <record id="action_operation_recent_transfers"
+            model="ir.actions.act_window">
+        <field name="name">Recent Internal Transfers</field>
+        <field name="res_model">stocksense.operation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('operation_type', '=', 'internal')]</field>
+        <field name="context">{'default_operation_type': 'internal'}</field>
+        <field name="search_view_id" ref="view_operation_search"/>
+        <field name="limit">10</field>
     </record>
 
 </odoo>

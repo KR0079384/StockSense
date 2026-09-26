@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
@@ -97,31 +98,41 @@ class StockSenseProduct(models.Model):
             product.total_stock = sum(stocks.mapped('quantity'))
 
     def _search_total_stock(self, operator, value):
-        """Search products by total stock quantity across internal locations."""
+        """Search products by total stock across internal locations."""
+        supported_operators = {
+            '>', '>=', '=', '==', '<=', '<', '!=', '<>',
+        }
+        if operator not in supported_operators:
+            return [('id', '=', False)]
+
         self.env.cr.execute("""
-            SELECT product_id, SUM(quantity) as qty
+            SELECT product_id, SUM(quantity) AS qty
             FROM stocksense_stock s
             JOIN stocksense_location l ON s.location_id = l.id
             WHERE l.location_type = 'internal'
             GROUP BY product_id
         """)
         stock_map = dict(self.env.cr.fetchall())
+
         all_product_ids = self.search([]).ids
         matching_ids = []
-        for pid in all_product_ids:
-            qty = stock_map.get(pid, 0.0)
-            if operator == '>' and qty > value:
-                matching_ids.append(pid)
-            elif operator == '>=' and qty >= value:
-                matching_ids.append(pid)
-            elif operator == '=' and qty == value:
-                matching_ids.append(pid)
-            elif operator == '<=' and qty <= value:
-                matching_ids.append(pid)
-            elif operator == '<' and qty < value:
-                matching_ids.append(pid)
-            elif operator in ('!=', '<>') and qty != value:
-                matching_ids.append(pid)
+
+        for product_id in all_product_ids:
+            quantity = stock_map.get(product_id, 0.0)
+
+            if operator == '>' and quantity > value:
+                matching_ids.append(product_id)
+            elif operator == '>=' and quantity >= value:
+                matching_ids.append(product_id)
+            elif operator in ('=', '==') and quantity == value:
+                matching_ids.append(product_id)
+            elif operator == '<=' and quantity <= value:
+                matching_ids.append(product_id)
+            elif operator == '<' and quantity < value:
+                matching_ids.append(product_id)
+            elif operator in ('!=', '<>') and quantity != value:
+                matching_ids.append(product_id)
+
         return [('id', 'in', matching_ids)]
 
     @api.constrains('weight')
@@ -137,10 +148,16 @@ class StockSenseProduct(models.Model):
                 raise ValidationError('Product volume cannot be negative.')
 
     _sql_constraints = [
-        ('sku_unique', 'UNIQUE(sku)',
-         'SKU must be unique. A product with this SKU already exists.'),
-        ('barcode_unique', 'UNIQUE(barcode)',
-         'Barcode must be unique. A product with this barcode already exists.'),
+        (
+            'sku_unique',
+            'UNIQUE(sku)',
+            'SKU must be unique. A product with this SKU already exists.',
+        ),
+        (
+            'barcode_unique',
+            'UNIQUE(barcode)',
+            'Barcode must be unique. A product with this barcode already exists.',
+        ),
     ]
 
     def name_get(self):

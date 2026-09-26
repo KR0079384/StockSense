@@ -61,6 +61,12 @@
               action="action_stock"
               sequence="10"/>
 
+    <menuitem id="menu_dashboard"
+              name="Dashboard"
+              parent="menu_inventory"
+              action="action_dashboard"
+              sequence="5"/>
+
     <menuitem id="menu_movement"
               name="Stock Ledger"
               parent="menu_inventory"
@@ -100,7 +106,7 @@
               name="Configuration"
               parent="menu_stocksense_root"
               sequence="90"
-              groups="stocksense.group_stocksense_manager"/>
+              groups="group_stocksense_manager"/>
 
     <menuitem id="menu_warehouse"
               name="Warehouses"

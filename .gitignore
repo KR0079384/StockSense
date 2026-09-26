@@ -21,3 +21,7 @@ filestore/
 # OS
 Thumbs.db
 .DS_Store
+
+# Temporary / Database Data
+scratch/
+pgdata/
