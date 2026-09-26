@@ -8,6 +8,14 @@
         <field name="arch" type="xml">
             <form string="Inventory Dashboard" create="0" edit="0" delete="0">
                 <sheet>
+                    <div class="oe_title">
+                        <h1>Inventory Dashboard</h1>
+                        <p>
+                            How much stock, where it is, what is low/out,
+                            what needs reordering, what is pending, and
+                            what happened recently.
+                        </p>
+                    </div>
                     <group string="Filters">
                         <field name="warehouse_id" options="{'no_create': True}"/>
                         <field name="location_id" options="{'no_create': True}"/>
@@ -57,8 +65,10 @@
                                 KPIs are computed live from stock balances, operations,
                                 and reorder rules. Low-stock and reorder alerts reuse
                                 the existing <b>is_below_reorder</b> and
-                                <b>is_triggered</b> semantics. Click a KPI to open
-                                the underlying records.
+                                <b>is_triggered</b> semantics. Out-of-stock is a
+                                product-level aggregate across internal locations.
+                                Click a KPI to open the underlying records. No
+                                scheduled email alerts are configured in this phase.
                             </p>
                         </div>
                     </group>
@@ -110,6 +120,9 @@
                         </div>
                     </group>
                     <group string="Alerts" colspan="2">
+                        <separator string="Low Stock: quantity &lt;= active reorder minimum"/>
+                        <separator string="Out of Stock: product aggregate internal quantity &lt;= 0"/>
+                        <separator string="Reorder Needed: triggered reorder rules"/>
                         <div class="oe_button_box" name="alerts">
                             <button name="action_view_low_stock" type="object"
                                     class="oe_stat_button" icon="fa-exclamation-triangle">

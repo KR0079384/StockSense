@@ -265,3 +265,67 @@ class TestStockSenseDashboard(TransactionCase):
         self.assertTrue(records[0].is_triggered)
         self.assertEqual(records[0].current_stock, 10.0)
 
+    # ── Phase 3: acceptance edge cases ──
+
+    def _delivery(self, product, location, qty, validate=True):
+        op = self.env['stocksense.operation'].create({
+            'operation_type': 'delivery',
+            'product_id': product.id,
+            'source_location_id': location.id,
+            'quantity': qty,
+        })
+        if validate:
+            op.action_validate()
+        return op
+
+    def test_operation_type_and_state_filters(self):
+        receipt = self._receipt(self.product, self.main_stock_loc, 10, validate=False)
+        dash = self._dashboard(filter_operation_type='receipt', filter_state='draft')
+        self.assertEqual(dash.filter_operation_type, 'receipt')
+        self.assertEqual(dash.filter_state, 'draft')
+        self.assertEqual(dash._count_pending('receipt'), 1)
+        receipt.action_confirm()
+        self.assertEqual(receipt.state, 'confirmed')
+        self.assertEqual(self._dashboard().pending_receipts_count, 1)
+        receipt.action_validate()
+        self.assertEqual(receipt.state, 'done')
+        self.assertEqual(self._dashboard().pending_receipts_count, 0)
+        cancelled = self._receipt(self.product, self.main_stock_loc, 5, validate=False)
+        cancelled.action_cancel()
+        self.assertEqual(cancelled.state, 'cancelled')
+        self.assertEqual(self._dashboard().pending_receipts_count, 0)
+
+    def test_reorder_boundary_conditions(self):
+        self._receipt(self.product, self.main_stock_loc, 10)
+        rule = self.env['stocksense.reorder.rule'].create({
+            'product_id': self.product.id,
+            'location_id': self.main_stock_loc.id,
+            'min_quantity': 10.0,
+            'reorder_quantity': 50.0,
+        })
+        # Exactly equal to minimum triggers (<= semantics).
+        self.assertEqual(self._dashboard().low_stock_count, 1)
+        self.assertIn(rule.id, self._dashboard().get_reorder_needed_records().ids)
+        # Above minimum clears.
+        self._receipt(self.product, self.main_stock_loc, 1)
+        self.assertEqual(self._dashboard().low_stock_count, 0)
+        self.assertEqual(len(self._dashboard().get_reorder_needed_records()), 0)
+
+    def test_two_warehouses_and_zero_rows_single_product(self):
+        self._receipt(self.product, self.main_stock_loc, 30)
+        self._receipt(self.product, self.secondary_stock_loc, 20)
+        dash = self._dashboard()
+        # One product with stock in two warehouses counts once.
+        self.assertEqual(dash.total_products_in_stock, 1)
+        self.assertEqual(dash.out_of_stock_count, 2)
+        self._delivery(self.product, self.main_stock_loc, 30)
+        self._delivery(self.product, self.secondary_stock_loc, 20)
+        # Two zero-quantity rows for one product still count once.
+        dash = self._dashboard()
+        self.assertEqual(dash.total_products_in_stock, 0)
+        self.assertEqual(dash.out_of_stock_count, 3)
+        self.assertEqual(
+            set(dash.get_out_of_stock_products().ids),
+            {self.product.id, self.product_b.id, self.product_child.id},
+        )
+

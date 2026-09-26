@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Inventory Dashboard (TransientModel).
 
-Phase 1 - Dashboard Foundation. Read-only dashboard over the
-existing source-of-truth models. Does NOT persist KPI data and does
-NOT alter ledger / state-machine behaviour.
+Phase 1 - Dashboard Foundation + Phase 2 Analytics + Phase 3
+finalization. Read-only dashboard over the existing source-of-truth
+models. Does NOT persist KPI data and does NOT alter ledger /
+state-machine behaviour.
 """
 from odoo import models, fields, api
 
@@ -169,9 +170,12 @@ class StockSenseDashboard(models.TransientModel):
     @api.depends('warehouse_id', 'location_id', 'category_id')
     def _compute_kpis(self):
         for dashboard in self:
-            dashboard.total_products_in_stock = dashboard._count_products_in_stock()
+            # Single scoped stock fetch reused for both distinct-product
+            # KPIs (avoids 2x identical search per record).
+            totals = dashboard._aggregated_qty_by_product()
+            dashboard.total_products_in_stock = sum(1 for qty in totals.values() if qty > 0)
+            dashboard.out_of_stock_count = dashboard._count_out_of_stock(totals)
             dashboard.low_stock_count = dashboard._count_low_stock()
-            dashboard.out_of_stock_count = dashboard._count_out_of_stock()
             dashboard.reorder_needed_count = dashboard._count_reorder_needed()
             dashboard.pending_receipts_count = dashboard._count_pending('receipt')
             dashboard.pending_deliveries_count = dashboard._count_pending('delivery')
@@ -191,22 +195,26 @@ class StockSenseDashboard(models.TransientModel):
         totals = self._aggregated_qty_by_product()
         return sum(1 for qty in totals.values() if qty > 0)
 
+    def _out_of_stock_product_ids(self, totals=None):
+        """Product-level out-of-stock ids (aggregate <= 0, no double count)."""
+        self.ensure_one()
+        if totals is None:
+            totals = self._aggregated_qty_by_product()
+        product_ids = [pid for pid, qty in totals.items() if qty <= 0]
+        if not self.warehouse_id and not self.location_id:
+            all_ids = self.env['stocksense.product'].search(self._product_domain()).ids
+            product_ids += [pid for pid in all_ids if pid not in totals]
+        return product_ids
+
+    def _count_out_of_stock(self, totals=None):
+        self.ensure_one()
+        return len(self._out_of_stock_product_ids(totals=totals))
+
     def _count_low_stock(self):
         """Reuse stocksense.stock.is_below_reorder semantics."""
         self.ensure_one()
         domain = self._stock_domain() + [('is_below_reorder', '=', True)]
         return self.env['stocksense.stock'].search_count(domain)
-
-    def _count_out_of_stock(self):
-        """Distinct products with scoped aggregate stock <= 0."""
-        self.ensure_one()
-        totals = self._aggregated_qty_by_product()
-        scoped = [pid for pid, qty in totals.items() if qty <= 0]
-        if not self.warehouse_id and not self.location_id:
-            all_ids = self.env['stocksense.product'].search(self._product_domain()).ids
-            missing = [pid for pid in all_ids if pid not in totals]
-            return len(scoped) + len(missing)
-        return len(scoped)
 
     def _count_reorder_needed(self):
         """Reuse stocksense.reorder.rule.is_triggered semantics."""
@@ -265,11 +273,7 @@ class StockSenseDashboard(models.TransientModel):
 
     def action_view_out_of_stock(self):
         self.ensure_one()
-        totals = self._aggregated_qty_by_product()
-        product_ids = [pid for pid, qty in totals.items() if qty <= 0]
-        if not self.warehouse_id and not self.location_id:
-            all_ids = self.env['stocksense.product'].search(self._product_domain()).ids
-            product_ids += [pid for pid in all_ids if pid not in totals]
+        product_ids = self._out_of_stock_product_ids()
         return self._action_for(
             'Out of Stock', 'stocksense.product', [('id', 'in', product_ids)]
         )
@@ -403,11 +407,7 @@ class StockSenseDashboard(models.TransientModel):
 
     def get_out_of_stock_products(self):
         self.ensure_one()
-        totals = self._aggregated_qty_by_product()
-        product_ids = [pid for pid, qty in totals.items() if qty <= 0]
-        if not self.warehouse_id and not self.location_id:
-            all_ids = self.env['stocksense.product'].search(self._product_domain()).ids
-            product_ids += [pid for pid in all_ids if pid not in totals]
+        product_ids = self._out_of_stock_product_ids()
         if not product_ids:
             return self.env['stocksense.product'].browse([])
         return self.env['stocksense.product'].search([('id', 'in', product_ids)])
