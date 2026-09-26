@@ -81,6 +81,7 @@ class StockSenseStock(models.Model):
     is_below_reorder = fields.Boolean(
         string='Below Reorder Level',
         compute='_compute_reorder_status',
+        search='_search_is_below_reorder',
         store=False,
     )
     reorder_min_qty = fields.Float(
@@ -103,6 +104,18 @@ class StockSenseStock(models.Model):
             else:
                 stock.is_below_reorder = False
                 stock.reorder_min_qty = 0.0
+
+    def _search_is_below_reorder(self, operator, value):
+        rules = self.env['stocksense.reorder.rule'].search([('active', '=', True)])
+        matching_stock_ids = []
+        for stock in self.search([]):
+            rule = rules.filtered(lambda r: r.product_id == stock.product_id and r.location_id == stock.location_id)
+            if rule and stock.quantity <= rule[0].min_quantity:
+                matching_stock_ids.append(stock.id)
+        if (operator in ('=', '==') and value) or (operator in ('!=', '<>') and not value):
+            return [('id', 'in', matching_stock_ids)]
+        else:
+            return [('id', 'not in', matching_stock_ids)]
 
     _sql_constraints = [
         ('product_location_unique',

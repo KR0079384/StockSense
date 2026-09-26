@@ -9,8 +9,9 @@
             <tree string="Inventory Operations" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'" decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="operation_type"/>
-                <field name="product_id"/>
-                <field name="quantity"/>
+                <field name="adjustment_type" invisible="operation_type != 'adjustment'"/>
+                <field name="product_id" string="Primary Product"/>
+                <field name="quantity" string="Total Quantity"/>
                 <field name="uom"/>
                 <field name="source_location_id"/>
                 <field name="destination_location_id"/>
@@ -30,21 +31,21 @@
                 <header>
                     <button name="action_confirm" string="Confirm" type="object"
                             class="btn-primary"
-                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                            invisible="state != 'draft'"/>
                     <button name="action_validate" string="Validate" type="object"
                             class="btn-primary"
-                            attrs="{'invisible': [('state', 'not in', ['draft', 'confirmed'])]}"/>
+                            invisible="state not in ['draft', 'confirmed']"/>
                     <button name="action_cancel" string="Cancel" type="object"
-                            attrs="{'invisible': [('state', 'in', ['done', 'cancelled'])]}"/>
+                            invisible="state in ['done', 'cancelled']"/>
                     <button name="action_draft" string="Reset to Draft" type="object"
-                            attrs="{'invisible': [('state', '!=', 'cancelled')]}"/>
+                            invisible="state != 'cancelled'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" icon="fa-exchange"
                                 name="action_view_movements" type="object"
-                                attrs="{'invisible': [('movement_count', '=', 0)]}">
+                                invisible="movement_count == 0">
                             <field name="movement_count" string="Movements" widget="statinfo"/>
                         </button>
                     </div>
@@ -56,15 +57,19 @@
                     <group>
                         <group string="Operation Details">
                             <field name="operation_type"/>
-                            <field name="product_id"/>
-                            <field name="quantity"/>
-                            <field name="uom"/>
+                            <field name="adjustment_type"
+                                   invisible="operation_type != 'adjustment'"
+                                   required="operation_type == 'adjustment'"/>
+                            <field name="partner_name"
+                                   invisible="operation_type not in ['receipt', 'delivery']"/>
                         </group>
                         <group string="Locations">
                             <field name="source_location_id"
-                                   attrs="{'invisible': [('operation_type', '=', 'receipt')], 'required': [('operation_type', 'in', ['delivery', 'internal'])]}"/>
+                                   invisible="operation_type == 'receipt' or (operation_type == 'adjustment' and adjustment_type == 'gain')"
+                                   required="operation_type in ['delivery', 'internal'] or (operation_type == 'adjustment' and adjustment_type == 'loss')"/>
                             <field name="destination_location_id"
-                                   attrs="{'invisible': [('operation_type', '=', 'delivery')], 'required': [('operation_type', 'in', ['receipt', 'internal', 'adjustment'])]}"/>
+                                   invisible="operation_type == 'delivery' or (operation_type == 'adjustment' and adjustment_type == 'loss')"
+                                   required="operation_type in ['receipt', 'internal'] or (operation_type == 'adjustment' and adjustment_type == 'gain')"/>
                         </group>
                     </group>
                     <group>
@@ -73,20 +78,26 @@
                             <field name="date_done" readonly="1"/>
                             <field name="responsible_user_id"/>
                         </group>
-                        <group string="Additional Info">
-                            <field name="partner_name"
-                                   attrs="{'invisible': [('operation_type', 'not in', ['receipt', 'delivery'])]}"/>
-                        </group>
                     </group>
                     <notebook>
+                        <page string="Products &amp; Quantities">
+                            <field name="line_ids">
+                                <tree editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="uom"/>
+                                </tree>
+                            </field>
+                        </page>
                         <page string="Reason / Notes">
                             <field name="reason" placeholder="Describe the reason for this operation..."/>
                         </page>
-                        <page string="Movements" attrs="{'invisible': [('movement_count', '=', 0)]}">
+                        <page string="Movements" invisible="movement_count == 0">
                             <field name="movement_ids" readonly="1">
                                 <tree>
                                     <field name="date"/>
                                     <field name="movement_type"/>
+                                    <field name="product_id"/>
                                     <field name="source_location_id"/>
                                     <field name="destination_location_id"/>
                                     <field name="quantity"/>
@@ -120,6 +131,9 @@
                 <filter string="Internal Transfers" name="transfers" domain="[('operation_type', '=', 'internal')]"/>
                 <filter string="Adjustments" name="adjustments" domain="[('operation_type', '=', 'adjustment')]"/>
                 <separator/>
+                <filter string="Stock Gain" name="gain_adjustments" domain="[('operation_type', '=', 'adjustment'), ('adjustment_type', '=', 'gain')]"/>
+                <filter string="Stock Loss" name="loss_adjustments" domain="[('operation_type', '=', 'adjustment'), ('adjustment_type', '=', 'loss')]"/>
+                <separator/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Confirmed" name="confirmed" domain="[('state', '=', 'confirmed')]"/>
                 <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
@@ -128,8 +142,9 @@
                 <filter string="This Week" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
                 <group expand="0" string="Group By">
                     <filter string="Type" name="group_type" context="{'group_by': 'operation_type'}"/>
+                    <filter string="Adjustment Direction" name="group_adjustment_type" context="{'group_by': 'adjustment_type'}"/>
                     <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Primary Product" name="group_product" context="{'group_by': 'product_id'}"/>
                     <filter string="Date" name="group_date" context="{'group_by': 'date:month'}"/>
                 </group>
             </search>

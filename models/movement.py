@@ -81,6 +81,14 @@ class StockSenseMovement(models.Model):
         ondelete='restrict',
         help='The business operation that generated this movement.',
     )
+    operation_line_id = fields.Many2one(
+        'stocksense.operation.line',
+        string='Source Operation Line',
+        readonly=True,
+        index=True,
+        ondelete='restrict',
+        help='The specific operation line that generated this movement.',
+    )
     date = fields.Datetime(
         string='Movement Date',
         default=fields.Datetime.now,

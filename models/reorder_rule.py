@@ -63,6 +63,7 @@ class StockSenseReorderRule(models.Model):
     is_triggered = fields.Boolean(
         string='Alert Triggered',
         compute='_compute_current_stock',
+        search='_search_is_triggered',
     )
 
     def _compute_current_stock(self):
@@ -73,6 +74,14 @@ class StockSenseReorderRule(models.Model):
             ], limit=1)
             rule.current_stock = stock.quantity if stock else 0.0
             rule.is_triggered = rule.current_stock <= rule.min_quantity
+
+    def _search_is_triggered(self, operator, value):
+        matching_rule_ids = []
+        for rule in self.search([]):
+            if (operator in ('=', '==') and rule.is_triggered == value) or \
+               (operator in ('!=', '<>') and rule.is_triggered != value):
+                matching_rule_ids.append(rule.id)
+        return [('id', 'in', matching_rule_ids)]
 
     @api.constrains('min_quantity')
     def _check_min_quantity(self):
