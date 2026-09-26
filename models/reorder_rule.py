@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
@@ -58,6 +59,7 @@ class StockSenseReorderRule(models.Model):
     current_stock = fields.Float(
         string='Current Stock',
         compute='_compute_current_stock',
+        store=True,
         digits=(12, 2),
     )
     is_triggered = fields.Boolean(
@@ -66,45 +68,86 @@ class StockSenseReorderRule(models.Model):
         search='_search_is_triggered',
     )
 
+    @api.depends(
+        'product_id',
+        'location_id',
+        'min_quantity',
+        'location_id.stock_count',
+    )
     def _compute_current_stock(self):
         for rule in self:
             stock = self.env['stocksense.stock'].search([
                 ('product_id', '=', rule.product_id.id),
                 ('location_id', '=', rule.location_id.id),
             ], limit=1)
+
             rule.current_stock = stock.quantity if stock else 0.0
-            rule.is_triggered = rule.current_stock <= rule.min_quantity
+            rule.is_triggered = (
+                rule.current_stock <= rule.min_quantity
+            )
 
     def _search_is_triggered(self, operator, value):
-        matching_rule_ids = []
-        for rule in self.search([]):
-            if (operator in ('=', '==') and rule.is_triggered == value) or \
-               (operator in ('!=', '<>') and rule.is_triggered != value):
-                matching_rule_ids.append(rule.id)
-        return [('id', 'in', matching_rule_ids)]
+        """Search reorder rules by their triggered status."""
+        if operator not in ('=', '==', '!=', '<>'):
+            return [('id', '=', False)]
+
+        # Normalize the requested boolean value.
+        expected = bool(value)
+        if operator in ('!=', '<>'):
+            expected = not expected
+
+        rules = self.search([('active', '=', True)])
+        matching_ids = []
+
+        for rule in rules:
+            stock = self.env['stocksense.stock'].search([
+                ('product_id', '=', rule.product_id.id),
+                ('location_id', '=', rule.location_id.id),
+            ], limit=1)
+
+            quantity = stock.quantity if stock else 0.0
+            triggered = quantity <= rule.min_quantity
+
+            if triggered == expected:
+                matching_ids.append(rule.id)
+
+        return [('id', 'in', matching_ids)]
 
     @api.constrains('min_quantity')
     def _check_min_quantity(self):
         for rule in self:
             if rule.min_quantity < 0:
-                raise ValidationError('Minimum quantity cannot be negative.')
+                raise ValidationError(
+                    'Minimum quantity cannot be negative.'
+                )
 
     @api.constrains('max_quantity', 'min_quantity')
     def _check_max_quantity(self):
         for rule in self:
-            if rule.max_quantity and rule.max_quantity < rule.min_quantity:
+            if (
+                rule.max_quantity
+                and rule.max_quantity < rule.min_quantity
+            ):
                 raise ValidationError(
-                    'Maximum quantity must be greater than or equal to minimum quantity.'
+                    'Maximum quantity must be greater than or equal '
+                    'to minimum quantity.'
                 )
 
     @api.constrains('reorder_quantity')
     def _check_reorder_quantity(self):
         for rule in self:
-            if rule.reorder_quantity and rule.reorder_quantity <= 0:
-                raise ValidationError('Reorder quantity must be positive.')
+            if (
+                rule.reorder_quantity
+                and rule.reorder_quantity <= 0
+            ):
+                raise ValidationError(
+                    'Reorder quantity must be positive.'
+                )
 
     _sql_constraints = [
-        ('product_location_unique',
-         'UNIQUE(product_id, location_id)',
-         'Only one reorder rule per product-location pair is allowed.'),
+        (
+            'product_location_unique',
+            'UNIQUE(product_id, location_id)',
+            'Only one reorder rule per product-location pair is allowed.',
+        ),
     ]

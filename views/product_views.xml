@@ -95,11 +95,13 @@
         <field name="model">stocksense.product</field>
         <field name="arch" type="xml">
             <search string="Search Products">
-                <field name="name"/>
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('sku', 'ilike', self), ('barcode', 'ilike', self)]"/>
                 <field name="sku"/>
                 <field name="barcode"/>
                 <field name="category_id"/>
+                <separator/>
                 <filter string="In Stock" name="in_stock" domain="[('total_stock', '>', 0)]"/>
+                <filter string="Out of Stock" name="out_of_stock" domain="[('total_stock', '=', 0)]"/>
                 <separator/>
                 <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
                 <group expand="0" string="Group By">

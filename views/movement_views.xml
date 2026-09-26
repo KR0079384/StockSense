@@ -73,11 +73,16 @@
         <field name="model">stocksense.movement</field>
         <field name="arch" type="xml">
             <search string="Search Movements">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('product_sku', 'ilike', self)]"/>
                 <field name="product_id"/>
                 <field name="product_sku"/>
+                <field name="product_category_id"/>
                 <field name="source_location_id"/>
                 <field name="destination_location_id"/>
+                <field name="source_warehouse_id"/>
+                <field name="dest_warehouse_id"/>
                 <field name="operation_id"/>
+                <field name="user_id"/>
                 <separator/>
                 <filter string="Receipts" name="receipts" domain="[('movement_type', '=', 'receipt')]"/>
                 <filter string="Deliveries" name="deliveries" domain="[('movement_type', '=', 'delivery')]"/>
@@ -85,11 +90,19 @@
                 <filter string="Adjustments" name="adjustments" domain="[('movement_type', 'in', ['adjustment_in', 'adjustment_out'])]"/>
                 <separator/>
                 <filter string="Today" name="today" domain="[('date', '&gt;=', (context_today()).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Yesterday" name="yesterday" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')), ('date', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="This Week" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <filter string="This Month" name="this_month" domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                <filter string="This Year" name="this_year" domain="[('date', '&gt;=', context_today().strftime('%Y-01-01'))]"/>
                 <group expand="0" string="Group By">
                     <filter string="Type" name="group_type" context="{'group_by': 'movement_type'}"/>
                     <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
-                    <filter string="Source" name="group_source" context="{'group_by': 'source_location_id'}"/>
-                    <filter string="Destination" name="group_dest" context="{'group_by': 'destination_location_id'}"/>
+                    <filter string="Category" name="group_category" context="{'group_by': 'product_category_id'}"/>
+                    <filter string="Source Location" name="group_source" context="{'group_by': 'source_location_id'}"/>
+                    <filter string="Destination Location" name="group_dest" context="{'group_by': 'destination_location_id'}"/>
+                    <filter string="Source Warehouse" name="group_source_wh" context="{'group_by': 'source_warehouse_id'}"/>
+                    <filter string="Destination Warehouse" name="group_dest_wh" context="{'group_by': 'dest_warehouse_id'}"/>
+                    <filter string="Performed By" name="group_user" context="{'group_by': 'user_id'}"/>
                     <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
                 </group>
             </search>

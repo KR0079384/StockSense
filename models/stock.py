@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 
@@ -77,7 +78,7 @@ class StockSenseStock(models.Model):
         readonly=True,
     )
 
-    # Reorder alert computed field
+    # Reorder alert computed fields
     is_below_reorder = fields.Boolean(
         string='Below Reorder Level',
         compute='_compute_reorder_status',
@@ -91,49 +92,73 @@ class StockSenseStock(models.Model):
     )
 
     def _compute_reorder_status(self):
-        """Check if current stock is below any applicable reorder rule."""
+        """Check if current stock is below its applicable reorder rule."""
         for stock in self:
             rule = self.env['stocksense.reorder.rule'].search([
                 ('product_id', '=', stock.product_id.id),
                 ('location_id', '=', stock.location_id.id),
                 ('active', '=', True),
             ], limit=1)
+
             if rule:
-                stock.is_below_reorder = stock.quantity <= rule.min_quantity
+                stock.is_below_reorder = (
+                    stock.quantity <= rule.min_quantity
+                )
                 stock.reorder_min_qty = rule.min_quantity
             else:
                 stock.is_below_reorder = False
                 stock.reorder_min_qty = 0.0
 
     def _search_is_below_reorder(self, operator, value):
-        rules = self.env['stocksense.reorder.rule'].search([('active', '=', True)])
+        """Search stock balances by their reorder alert status."""
+        if operator not in ('=', '==', '!=', '<>'):
+            return [('id', '=', False)]
+
+        # Determine whether the search should return triggered
+        # or non-triggered stock balances.
+        expected = bool(value)
+        if operator in ('!=', '<>'):
+            expected = not expected
+
+        rules = self.env['stocksense.reorder.rule'].search([
+            ('active', '=', True),
+        ])
+
+        # Build a lookup by product/location for efficient matching.
+        rule_by_key = {
+            (rule.product_id.id, rule.location_id.id): rule
+            for rule in rules
+        }
+
         matching_stock_ids = []
         for stock in self.search([]):
-            rule = rules.filtered(lambda r: r.product_id == stock.product_id and r.location_id == stock.location_id)
-            if rule and stock.quantity <= rule[0].min_quantity:
+            key = (stock.product_id.id, stock.location_id.id)
+            rule = rule_by_key.get(key)
+
+            # A stock balance without a reorder rule is not below
+            # a configured reorder level.
+            triggered = bool(
+                rule and stock.quantity <= rule.min_quantity
+            )
+
+            if triggered == expected:
                 matching_stock_ids.append(stock.id)
-        if (operator in ('=', '==') and value) or (operator in ('!=', '<>') and not value):
-            return [('id', 'in', matching_stock_ids)]
-        else:
-            return [('id', 'not in', matching_stock_ids)]
+
+        return [('id', 'in', matching_stock_ids)]
 
     _sql_constraints = [
-        ('product_location_unique',
-         'UNIQUE(product_id, location_id)',
-         'Stock balance must be unique per product-location pair.'),
+        (
+            'product_location_unique',
+            'UNIQUE(product_id, location_id)',
+            'Stock balance must be unique per product-location pair.',
+        ),
     ]
 
     @api.model
     def _update_quantity(self, product_id, location_id, qty_change):
-        """Update the stock balance for a product at a location.
+        """Update stock balance, creating it if necessary.
 
-        Creates the balance record if it doesn't exist yet.
-        This method is called exclusively by Movement._update_stock_balances().
-
-        Args:
-            product_id: int - product record ID
-            location_id: int - location record ID
-            qty_change: float - quantity to add (positive) or subtract (negative)
+        Called by Movement._update_stock_balances().
         """
         stock = self.search([
             ('product_id', '=', product_id),
@@ -141,7 +166,7 @@ class StockSenseStock(models.Model):
         ], limit=1)
 
         if stock:
-            # Use SQL for atomic update to avoid race conditions
+            # SQL update avoids lost updates during concurrent movements.
             self.env.cr.execute(
                 """
                 UPDATE stocksense_stock
@@ -149,7 +174,7 @@ class StockSenseStock(models.Model):
                 WHERE id = %s
                 RETURNING quantity
                 """,
-                (qty_change, stock.id)
+                (qty_change, stock.id),
             )
             stock.invalidate_recordset(['quantity'])
         else:
@@ -160,7 +185,7 @@ class StockSenseStock(models.Model):
             })
 
     def action_view_movements(self):
-        """Open the movement history for this product at this location."""
+        """Open movement history for this product at this location."""
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -168,12 +193,14 @@ class StockSenseStock(models.Model):
             'res_model': 'stocksense.movement',
             'view_mode': 'tree,form',
             'domain': [
+                ('product_id', '=', self.product_id.id),
                 '|',
                 ('source_location_id', '=', self.location_id.id),
                 ('destination_location_id', '=', self.location_id.id),
-                ('product_id', '=', self.product_id.id),
             ],
-            'context': {'default_product_id': self.product_id.id},
+            'context': {
+                'default_product_id': self.product_id.id,
+            },
         }
 
     def name_get(self):
