@@ -54,17 +54,26 @@ class StockSenseReorderRule(models.Model):
     )
     active = fields.Boolean(default=True)
 
+    
     # Computed: current stock level for this rule
     current_stock = fields.Float(
         string='Current Stock',
         compute='_compute_current_stock',
+        store=True,
         digits=(12, 2),
     )
     is_triggered = fields.Boolean(
-        string='Alert Triggered',
-        compute='_compute_current_stock',
+    string='Alert Triggered',
+    compute='_compute_current_stock',
+    search='_search_is_triggered',
     )
 
+    @api.depends(
+        'product_id',
+        'location_id',
+        'min_quantity',
+        'location_id.stock_count',
+    )
     def _compute_current_stock(self):
         for rule in self:
             stock = self.env['stocksense.stock'].search([
@@ -73,6 +82,34 @@ class StockSenseReorderRule(models.Model):
             ], limit=1)
             rule.current_stock = stock.quantity if stock else 0.0
             rule.is_triggered = rule.current_stock <= rule.min_quantity
+
+    def _search_is_triggered(self, operator, value):
+        """Search reorder rules based on their current stock level."""
+        if operator not in ('=', '!='):
+            return []
+
+        is_true = (operator == '=' and value) or (
+            operator == '!=' and not value
+        )
+
+        rules = self.search([('active', '=', True)])
+        matching_ids = []
+
+        for rule in rules:
+            stock = self.env['stocksense.stock'].search([
+                ('product_id', '=', rule.product_id.id),
+                ('location_id', '=', rule.location_id.id),
+            ], limit=1)
+
+            quantity = stock.quantity if stock else 0.0
+
+            if quantity <= rule.min_quantity:
+                matching_ids.append(rule.id)
+
+        if is_true:
+            return [('id', 'in', matching_ids)]
+
+        return [('id', 'not in', matching_ids)]
 
     @api.constrains('min_quantity')
     def _check_min_quantity(self):

@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 from odoo.exceptions import UserError, ValidationError
@@ -28,6 +29,7 @@ class StockSenseOperation(models.Model):
         default='New',
         index=True,
     )
+
     operation_type = fields.Selection(
         selection=[
             ('receipt', 'Receipt'),
@@ -37,11 +39,10 @@ class StockSenseOperation(models.Model):
         ],
         string='Operation Type',
         required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         index=True,
         tracking=True,
     )
+
     state = fields.Selection(
         selection=[
             ('draft', 'Draft'),
@@ -57,98 +58,121 @@ class StockSenseOperation(models.Model):
         tracking=True,
         copy=False,
     )
+
     date = fields.Datetime(
         string='Scheduled Date',
         default=fields.Datetime.now,
         required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         tracking=True,
     )
+
     date_done = fields.Datetime(
         string='Completed Date',
         readonly=True,
         copy=False,
     )
+
     product_id = fields.Many2one(
         'stocksense.product',
         string='Product',
         required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         index=True,
         tracking=True,
     )
+
     quantity = fields.Float(
         string='Quantity',
         required=True,
         digits=(12, 2),
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         tracking=True,
     )
+
     uom = fields.Selection(
         related='product_id.uom',
         string='Unit of Measure',
         readonly=True,
         store=True,
     )
+
     source_location_id = fields.Many2one(
         'stocksense.location',
         string='Source Location',
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         index=True,
         tracking=True,
         help='Where the stock is coming from.',
     )
+
     destination_location_id = fields.Many2one(
         'stocksense.location',
         string='Destination Location',
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         index=True,
         tracking=True,
         help='Where the stock is going to.',
     )
+
     partner_name = fields.Char(
         string='Partner / Vendor / Customer',
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         help='Name of the supplier or customer for receipt/delivery operations.',
     )
+
     reason = fields.Text(
         string='Reason / Notes',
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         help='Reason for the operation, especially for adjustments.',
     )
+
     responsible_user_id = fields.Many2one(
         'res.users',
         string='Responsible',
         default=lambda self: self.env.user,
-        readonly=True,
-        states={'draft': [('readonly', False)]},
         tracking=True,
     )
+
     movement_ids = fields.One2many(
         'stocksense.movement',
         'operation_id',
         string='Movements',
         readonly=True,
     )
+
     movement_count = fields.Integer(
         string='Movement Count',
         compute='_compute_movement_count',
+    )
+
+    # Denormalized fields for efficient filtering and search
+    product_sku = fields.Char(
+        related='product_id.sku',
+        string='Product SKU',
+        store=True,
+        readonly=True,
+    )
+
+    product_category_id = fields.Many2one(
+        related='product_id.category_id',
+        string='Product Category',
+        store=True,
+        readonly=True,
+    )
+
+    source_warehouse_id = fields.Many2one(
+        related='source_location_id.warehouse_id',
+        string='Source Warehouse',
+        store=True,
+        readonly=True,
+    )
+
+    destination_warehouse_id = fields.Many2one(
+        related='destination_location_id.warehouse_id',
+        string='Destination Warehouse',
+        store=True,
+        readonly=True,
     )
 
     def _compute_movement_count(self):
         for operation in self:
             operation.movement_count = len(operation.movement_ids)
 
-    # ──────────────────────────────────────────────────────────────────
     # CRUD Overrides
-    # ──────────────────────────────────────────────────────────────────
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -157,7 +181,9 @@ class StockSenseOperation(models.Model):
             if vals.get('name', 'New') == 'New':
                 op_type = vals.get('operation_type', 'receipt')
                 seq_code = 'stocksense.operation.%s' % op_type
-                vals['name'] = self.env['ir.sequence'].next_by_code(seq_code) or 'New'
+                vals['name'] = (
+                    self.env['ir.sequence'].next_by_code(seq_code) or 'New'
+                )
         return super().create(vals_list)
 
     def unlink(self):
@@ -170,9 +196,7 @@ class StockSenseOperation(models.Model):
                 )
         return super().unlink()
 
-    # ──────────────────────────────────────────────────────────────────
     # Constraints
-    # ──────────────────────────────────────────────────────────────────
 
     @api.constrains('quantity')
     def _check_quantity_positive(self):
@@ -183,7 +207,11 @@ class StockSenseOperation(models.Model):
                     % operation.quantity
                 )
 
-    @api.constrains('source_location_id', 'destination_location_id', 'operation_type')
+    @api.constrains(
+        'source_location_id',
+        'destination_location_id',
+        'operation_type',
+    )
     def _check_locations(self):
         """Validate location requirements based on operation type."""
         for op in self:
@@ -196,6 +224,7 @@ class StockSenseOperation(models.Model):
                     raise ValidationError(
                         'Receipt destination must be an internal location.'
                     )
+
             elif op.operation_type == 'delivery':
                 if not op.source_location_id:
                     raise ValidationError(
@@ -205,10 +234,15 @@ class StockSenseOperation(models.Model):
                     raise ValidationError(
                         'Delivery source must be an internal location.'
                     )
+
             elif op.operation_type == 'internal':
-                if not op.source_location_id or not op.destination_location_id:
+                if (
+                    not op.source_location_id
+                    or not op.destination_location_id
+                ):
                     raise ValidationError(
-                        'Internal transfers require both source and destination locations.'
+                        'Internal transfers require both source and '
+                        'destination locations.'
                     )
                 if op.source_location_id == op.destination_location_id:
                     raise ValidationError(
@@ -222,6 +256,7 @@ class StockSenseOperation(models.Model):
                     raise ValidationError(
                         'Transfer destination must be an internal location.'
                     )
+
             elif op.operation_type == 'adjustment':
                 if not op.destination_location_id:
                     raise ValidationError(
@@ -229,9 +264,7 @@ class StockSenseOperation(models.Model):
                         '(destination for gain, source for loss).'
                     )
 
-    # ──────────────────────────────────────────────────────────────────
     # State Transitions
-    # ──────────────────────────────────────────────────────────────────
 
     def action_confirm(self):
         """Move operation from draft to confirmed."""
@@ -241,10 +274,8 @@ class StockSenseOperation(models.Model):
             operation.state = 'confirmed'
 
     def action_validate(self):
-        """Validate the operation: transition to done, create movements, update stock.
-
-        This is the critical method that bridges business operations
-        to the movement ledger and stock balances.
+        """Validate the operation: transition to done, create movements,
+        and update stock.
         """
         for operation in self:
             if operation.state not in ('draft', 'confirmed'):
@@ -271,12 +302,12 @@ class StockSenseOperation(models.Model):
         """Reset a cancelled operation back to draft."""
         for operation in self:
             if operation.state != 'cancelled':
-                raise UserError('Only cancelled operations can be reset to draft.')
+                raise UserError(
+                    'Only cancelled operations can be reset to draft.'
+                )
             operation.state = 'draft'
 
-    # ──────────────────────────────────────────────────────────────────
     # Movement Creation (Core Business Logic)
-    # ──────────────────────────────────────────────────────────────────
 
     def _create_movements(self):
         """Create inventory movement(s) for this operation.
@@ -285,7 +316,7 @@ class StockSenseOperation(models.Model):
         The movement is then created and stock balances are updated atomically.
         """
         self.ensure_one()
-        Movement = self.env['stocksense.movement']
+        Movement = self.env['stocksense.movement'].sudo()
 
         if self.operation_type == 'receipt':
             # Supplier (virtual) → Internal location
@@ -313,11 +344,15 @@ class StockSenseOperation(models.Model):
         elif self.operation_type == 'adjustment':
             adjustment_loc = self.env.ref('stocksense.location_adjustment')
             target = self.destination_location_id
+
             # Determine if this is stock gain or loss based on quantity context
             # Positive qty on an adjustment = stock correction at the target location
             # We'll use reason field to differentiate, but by default treat as stock-in
             # For stock loss, user creates an adjustment with source = internal location
-            if self.source_location_id and self.source_location_id.location_type == 'internal':
+            if (
+                self.source_location_id
+                and self.source_location_id.location_type == 'internal'
+            ):
                 # Stock loss: internal → adjustment virtual
                 source = self.source_location_id
                 destination = adjustment_loc
@@ -329,7 +364,9 @@ class StockSenseOperation(models.Model):
                 destination = target
                 move_type = 'adjustment_in'
         else:
-            raise UserError('Unknown operation type: %s' % self.operation_type)
+            raise UserError(
+                'Unknown operation type: %s' % self.operation_type
+            )
 
         # Create the movement record
         movement = Movement.create({
@@ -355,6 +392,7 @@ class StockSenseOperation(models.Model):
             ('product_id', '=', self.product_id.id),
             ('location_id', '=', location.id),
         ], limit=1)
+
         available = stock.quantity if stock else 0.0
         if available < self.quantity:
             raise UserError(
@@ -363,8 +401,10 @@ class StockSenseOperation(models.Model):
                 'Required: %.2f %s'
                 % (
                     location.complete_name or location.name,
-                    available, self.product_id.uom,
-                    self.quantity, self.product_id.uom,
+                    available,
+                    self.product_id.uom,
+                    self.quantity,
+                    self.product_id.uom,
                 )
             )
 

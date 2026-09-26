@@ -6,7 +6,11 @@
         <field name="name">stocksense.operation.tree</field>
         <field name="model">stocksense.operation</field>
         <field name="arch" type="xml">
-            <tree string="Inventory Operations" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'" decoration-muted="state == 'cancelled'">
+            <tree string="Inventory Operations"
+                  decoration-info="state == 'draft'"
+                  decoration-warning="state == 'confirmed'"
+                  decoration-success="state == 'done'"
+                  decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="operation_type"/>
                 <field name="product_id"/>
@@ -16,7 +20,11 @@
                 <field name="destination_location_id"/>
                 <field name="date"/>
                 <field name="responsible_user_id"/>
-                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'confirmed'" decoration-success="state == 'done'" decoration-danger="state == 'cancelled'"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-warning="state == 'confirmed'"
+                       decoration-success="state == 'done'"
+                       decoration-danger="state == 'cancelled'"/>
             </tree>
         </field>
     </record>
@@ -28,61 +36,101 @@
         <field name="arch" type="xml">
             <form string="Inventory Operation">
                 <header>
-                    <button name="action_confirm" string="Confirm" type="object"
+                    <button name="action_confirm"
+                            string="Confirm"
+                            type="object"
                             class="btn-primary"
-                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
-                    <button name="action_validate" string="Validate" type="object"
+                            invisible="state != 'draft'"/>
+
+                    <button name="action_validate"
+                            string="Validate"
+                            type="object"
                             class="btn-primary"
-                            attrs="{'invisible': [('state', 'not in', ['draft', 'confirmed'])]}"/>
-                    <button name="action_cancel" string="Cancel" type="object"
-                            attrs="{'invisible': [('state', 'in', ['done', 'cancelled'])]}"/>
-                    <button name="action_draft" string="Reset to Draft" type="object"
-                            attrs="{'invisible': [('state', '!=', 'cancelled')]}"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,done"/>
+                            invisible="state not in ['draft', 'confirmed']"/>
+
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state in ['done', 'cancelled']"/>
+
+                    <button name="action_draft"
+                            string="Reset to Draft"
+                            type="object"
+                            invisible="state != 'cancelled'"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,confirmed,done"/>
                 </header>
+
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" icon="fa-exchange"
-                                name="action_view_movements" type="object"
-                                attrs="{'invisible': [('movement_count', '=', 0)]}">
-                            <field name="movement_count" string="Movements" widget="statinfo"/>
+                        <button class="oe_stat_button"
+                                icon="fa-exchange"
+                                name="action_view_movements"
+                                type="object"
+                                invisible="movement_count == 0">
+                            <field name="movement_count"
+                                   string="Movements"
+                                   widget="statinfo"/>
                         </button>
                     </div>
+
                     <div class="oe_title">
                         <h1>
                             <field name="name"/>
                         </h1>
                     </div>
+
                     <group>
                         <group string="Operation Details">
-                            <field name="operation_type"/>
-                            <field name="product_id"/>
-                            <field name="quantity"/>
+                            <field name="operation_type"
+                                   readonly="state != 'draft'"/>
+                            <field name="product_id"
+                                   readonly="state != 'draft'"/>
+                            <field name="quantity"
+                                   readonly="state != 'draft'"/>
                             <field name="uom"/>
                         </group>
+
                         <group string="Locations">
                             <field name="source_location_id"
-                                   attrs="{'invisible': [('operation_type', '=', 'receipt')], 'required': [('operation_type', 'in', ['delivery', 'internal'])]}"/>
+                                   readonly="state != 'draft'"
+                                   invisible="operation_type == 'receipt'"
+                                   required="operation_type in ['delivery', 'internal']"/>
+
                             <field name="destination_location_id"
-                                   attrs="{'invisible': [('operation_type', '=', 'delivery')], 'required': [('operation_type', 'in', ['receipt', 'internal', 'adjustment'])]}"/>
+                                   readonly="state != 'draft'"
+                                   invisible="operation_type == 'delivery'"
+                                   required="operation_type in ['receipt', 'internal', 'adjustment']"/>
                         </group>
                     </group>
+
                     <group>
                         <group string="Scheduling">
-                            <field name="date"/>
+                            <field name="date"
+                                   readonly="state != 'draft'"/>
                             <field name="date_done" readonly="1"/>
-                            <field name="responsible_user_id"/>
+                            <field name="responsible_user_id"
+                                   readonly="state != 'draft'"/>
                         </group>
+
                         <group string="Additional Info">
                             <field name="partner_name"
-                                   attrs="{'invisible': [('operation_type', 'not in', ['receipt', 'delivery'])]}"/>
+                                   readonly="state != 'draft'"
+                                   invisible="operation_type not in ['receipt', 'delivery']"/>
                         </group>
                     </group>
+
                     <notebook>
                         <page string="Reason / Notes">
-                            <field name="reason" placeholder="Describe the reason for this operation..."/>
+                            <field name="reason"
+                                   readonly="state != 'draft'"
+                                   placeholder="Describe the reason for this operation..."/>
                         </page>
-                        <page string="Movements" attrs="{'invisible': [('movement_count', '=', 0)]}">
+
+                        <page string="Movements"
+                              invisible="movement_count == 0">
                             <field name="movement_ids" readonly="1">
                                 <tree>
                                     <field name="date"/>
@@ -97,6 +145,7 @@
                         </page>
                     </notebook>
                 </sheet>
+
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
                     <field name="message_ids"/>
@@ -111,26 +160,94 @@
         <field name="model">stocksense.operation</field>
         <field name="arch" type="xml">
             <search string="Search Operations">
-                <field name="name"/>
+                <field name="name"
+                       filter_domain="['|', '|', ('name', 'ilike', self), ('product_sku', 'ilike', self), ('partner_name', 'ilike', self)]"/>
                 <field name="product_id"/>
+                <field name="product_sku"/>
+                <field name="product_category_id"/>
                 <field name="partner_name"/>
+                <field name="source_location_id"/>
+                <field name="destination_location_id"/>
+                <field name="source_warehouse_id"/>
+                <field name="destination_warehouse_id"/>
+                <field name="responsible_user_id"/>
+
                 <separator/>
-                <filter string="Receipts" name="receipts" domain="[('operation_type', '=', 'receipt')]"/>
-                <filter string="Deliveries" name="deliveries" domain="[('operation_type', '=', 'delivery')]"/>
-                <filter string="Internal Transfers" name="transfers" domain="[('operation_type', '=', 'internal')]"/>
-                <filter string="Adjustments" name="adjustments" domain="[('operation_type', '=', 'adjustment')]"/>
+
+                <filter string="Receipts"
+                        name="receipts"
+                        domain="[('operation_type', '=', 'receipt')]"/>
+                <filter string="Deliveries"
+                        name="deliveries"
+                        domain="[('operation_type', '=', 'delivery')]"/>
+                <filter string="Internal Transfers"
+                        name="transfers"
+                        domain="[('operation_type', '=', 'internal')]"/>
+                <filter string="Adjustments"
+                        name="adjustments"
+                        domain="[('operation_type', '=', 'adjustment')]"/>
+
                 <separator/>
-                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Confirmed" name="confirmed" domain="[('state', '=', 'confirmed')]"/>
-                <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+
+                <filter string="Draft"
+                        name="draft"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter string="Confirmed"
+                        name="confirmed"
+                        domain="[('state', '=', 'confirmed')]"/>
+                <filter string="Done"
+                        name="done"
+                        domain="[('state', '=', 'done')]"/>
+                <filter string="Cancelled"
+                        name="cancelled"
+                        domain="[('state', '=', 'cancelled')]"/>
+
                 <separator/>
-                <filter string="Today" name="today" domain="[('date', '&gt;=', (context_today()).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
-                <filter string="This Week" name="this_week" domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+
+                <filter string="Today"
+                        name="today"
+                        domain="[('date', '&gt;=', (context_today()).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Yesterday"
+                        name="yesterday"
+                        domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')), ('date', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="This Week"
+                        name="this_week"
+                        domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <filter string="This Month"
+                        name="this_month"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                <filter string="This Year"
+                        name="this_year"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-01-01'))]"/>
+
                 <group expand="0" string="Group By">
-                    <filter string="Type" name="group_type" context="{'group_by': 'operation_type'}"/>
-                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
-                    <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
-                    <filter string="Date" name="group_date" context="{'group_by': 'date:month'}"/>
+                    <filter string="Type"
+                            name="group_type"
+                            context="{'group_by': 'operation_type'}"/>
+                    <filter string="Status"
+                            name="group_state"
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Product"
+                            name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Category"
+                            name="group_category"
+                            context="{'group_by': 'product_category_id'}"/>
+                    <filter string="Source Location"
+                            name="group_source_loc"
+                            context="{'group_by': 'source_location_id'}"/>
+                    <filter string="Destination Location"
+                            name="group_dest_loc"
+                            context="{'group_by': 'destination_location_id'}"/>
+                    <filter string="Source Warehouse"
+                            name="group_source_wh"
+                            context="{'group_by': 'source_warehouse_id'}"/>
+                    <filter string="Destination Warehouse"
+                            name="group_dest_wh"
+                            context="{'group_by': 'destination_warehouse_id'}"/>
+                    <filter string="Scheduled Date"
+                            name="group_date"
+                            context="{'group_by': 'date:month'}"/>
                 </group>
             </search>
         </field>

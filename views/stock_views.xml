@@ -64,8 +64,10 @@
         <field name="model">stocksense.stock</field>
         <field name="arch" type="xml">
             <search string="Search Stock">
-                <field name="product_name"/>
+                <field name="product_name" filter_domain="['|', ('product_name', 'ilike', self), ('product_sku', 'ilike', self)]"/>
+                <field name="product_id"/>
                 <field name="product_sku"/>
+                <field name="product_category_id"/>
                 <field name="location_id"/>
                 <field name="warehouse_id"/>
                 <separator/>

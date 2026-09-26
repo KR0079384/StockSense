@@ -58,10 +58,13 @@ class StockSenseProduct(models.Model):
     active = fields.Boolean(default=True)
     notes = fields.Text(string='Internal Notes')
 
+    _rec_names_search = ['name', 'sku', 'barcode']
+
     # Computed stock fields for quick access
     total_stock = fields.Float(
         string='Total Stock',
         compute='_compute_total_stock',
+        search='_search_total_stock',
         store=False,
         digits=(12, 2),
         help='Total quantity across all internal locations.',
@@ -92,6 +95,34 @@ class StockSenseProduct(models.Model):
                 ('location_id.location_type', '=', 'internal'),
             ])
             product.total_stock = sum(stocks.mapped('quantity'))
+
+    def _search_total_stock(self, operator, value):
+        """Search products by total stock quantity across internal locations."""
+        self.env.cr.execute("""
+            SELECT product_id, SUM(quantity) as qty
+            FROM stocksense_stock s
+            JOIN stocksense_location l ON s.location_id = l.id
+            WHERE l.location_type = 'internal'
+            GROUP BY product_id
+        """)
+        stock_map = dict(self.env.cr.fetchall())
+        all_product_ids = self.search([]).ids
+        matching_ids = []
+        for pid in all_product_ids:
+            qty = stock_map.get(pid, 0.0)
+            if operator == '>' and qty > value:
+                matching_ids.append(pid)
+            elif operator == '>=' and qty >= value:
+                matching_ids.append(pid)
+            elif operator == '=' and qty == value:
+                matching_ids.append(pid)
+            elif operator == '<=' and qty <= value:
+                matching_ids.append(pid)
+            elif operator == '<' and qty < value:
+                matching_ids.append(pid)
+            elif operator in ('!=', '<>') and qty != value:
+                matching_ids.append(pid)
+        return [('id', 'in', matching_ids)]
 
     @api.constrains('weight')
     def _check_weight(self):

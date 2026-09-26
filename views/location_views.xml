@@ -35,7 +35,8 @@
                         <group>
                             <field name="location_type"/>
                             <field name="warehouse_id"
-                                   attrs="{'required': [('location_type', '=', 'internal')], 'invisible': [('location_type', '!=', 'internal')]}"/>
+                                   required="location_type == 'internal'"
+                                   invisible="location_type != 'internal'"/>
                             <field name="parent_id"/>
                         </group>
                         <group>
@@ -70,12 +71,16 @@
             <search string="Search Locations">
                 <field name="name"/>
                 <field name="warehouse_id"/>
-                <filter string="Internal" name="internal" domain="[('location_type', '=', 'internal')]"/>
-                <filter string="Virtual" name="virtual" domain="[('location_type', 'in', ['supplier', 'customer', 'adjustment'])]"/>
+                <filter string="Internal" name="internal"
+                        domain="[('location_type', '=', 'internal')]"/>
+                <filter string="Virtual" name="virtual"
+                        domain="[('location_type', 'in', ['supplier', 'customer', 'adjustment'])]"/>
                 <separator/>
                 <group expand="0" string="Group By">
-                    <filter string="Warehouse" name="group_warehouse" context="{'group_by': 'warehouse_id'}"/>
-                    <filter string="Type" name="group_type" context="{'group_by': 'location_type'}"/>
+                    <filter string="Warehouse" name="group_warehouse"
+                            context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Type" name="group_type"
+                            context="{'group_by': 'location_type'}"/>
                 </group>
             </search>
         </field>
