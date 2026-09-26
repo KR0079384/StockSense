@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Virtual Location: Suppliers -->
+        <record id="location_suppliers" model="stocksense.location">
+            <field name="name">Suppliers</field>
+            <field name="location_type">supplier</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Virtual Location: Customers -->
+        <record id="location_customers" model="stocksense.location">
+            <field name="name">Customers</field>
+            <field name="location_type">customer</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Virtual Location: Inventory Adjustment -->
+        <record id="location_adjustment" model="stocksense.location">
+            <field name="name">Inventory Adjustment</field>
+            <field name="location_type">adjustment</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

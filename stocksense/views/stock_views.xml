@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Stock Balance Tree View -->
+    <record id="view_stock_tree" model="ir.ui.view">
+        <field name="name">stocksense.stock.tree</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <tree string="Stock Balances" create="0" edit="0" delete="0"
+                  decoration-danger="is_below_reorder == True">
+                <field name="product_sku"/>
+                <field name="product_name"/>
+                <field name="product_category_id"/>
+                <field name="warehouse_id"/>
+                <field name="location_name"/>
+                <field name="quantity"/>
+                <field name="uom"/>
+                <field name="is_below_reorder" string="Low Stock" widget="boolean"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Stock Balance Form View -->
+    <record id="view_stock_form" model="ir.ui.view">
+        <field name="name">stocksense.stock.form</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <form string="Stock Balance" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group string="Product">
+                            <field name="product_id"/>
+                            <field name="product_sku"/>
+                            <field name="product_category_id"/>
+                        </group>
+                        <group string="Location">
+                            <field name="location_id"/>
+                            <field name="location_name"/>
+                            <field name="warehouse_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Quantity">
+                            <field name="quantity"/>
+                            <field name="uom"/>
+                        </group>
+                        <group string="Reorder Status">
+                            <field name="is_below_reorder"/>
+                            <field name="reorder_min_qty"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_view_movements" string="View Movement History"
+                                type="object" class="btn-primary"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Stock Search View -->
+    <record id="view_stock_search" model="ir.ui.view">
+        <field name="name">stocksense.stock.search</field>
+        <field name="model">stocksense.stock</field>
+        <field name="arch" type="xml">
+            <search string="Search Stock">
+                <field name="product_name"/>
+                <field name="product_sku"/>
+                <field name="location_id"/>
+                <field name="warehouse_id"/>
+                <separator/>
+                <filter string="In Stock" name="in_stock" domain="[('quantity', '>', 0)]"/>
+                <filter string="Out of Stock" name="out_of_stock" domain="[('quantity', '&lt;=', 0)]"/>
+                <filter string="Low Stock" name="low_stock" domain="[('is_below_reorder', '=', True)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Warehouse" name="group_warehouse" context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Location" name="group_location" context="{'group_by': 'location_id'}"/>
+                    <filter string="Category" name="group_category" context="{'group_by': 'product_category_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Stock Action -->
+    <record id="action_stock" model="ir.actions.act_window">
+        <field name="name">Stock on Hand</field>
+        <field name="res_model">stocksense.stock</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_stock_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No stock balances yet
+            </p>
+            <p>Stock balances are automatically created when inventory operations are validated.</p>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Movement Tree View -->
+    <record id="view_movement_tree" model="ir.ui.view">
+        <field name="name">stocksense.movement.tree</field>
+        <field name="model">stocksense.movement</field>
+        <field name="arch" type="xml">
+            <tree string="Stock Movements" create="0" edit="0" delete="0"
+                  decoration-info="movement_type == 'receipt'"
+                  decoration-danger="movement_type == 'delivery'"
+                  decoration-warning="movement_type in ('adjustment_in', 'adjustment_out')">
+                <field name="date"/>
+                <field name="name"/>
+                <field name="movement_type"/>
+                <field name="product_id"/>
+                <field name="product_sku"/>
+                <field name="source_location_id"/>
+                <field name="destination_location_id"/>
+                <field name="quantity"/>
+                <field name="uom"/>
+                <field name="user_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Movement Form View (read-only) -->
+    <record id="view_movement_form" model="ir.ui.view">
+        <field name="name">stocksense.movement.form</field>
+        <field name="model">stocksense.movement</field>
+        <field name="arch" type="xml">
+            <form string="Stock Movement" create="0" edit="0" delete="0">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Movement Details">
+                            <field name="movement_type"/>
+                            <field name="product_id"/>
+                            <field name="product_sku"/>
+                            <field name="quantity"/>
+                            <field name="uom"/>
+                        </group>
+                        <group string="Locations">
+                            <field name="source_location_id"/>
+                            <field name="destination_location_id"/>
+                            <field name="source_warehouse_id"/>
+                            <field name="dest_warehouse_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Audit Trail">
+                            <field name="operation_id"/>
+                            <field name="date"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group string="Additional">
+                            <field name="product_category_id"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Movement Search View -->
+    <record id="view_movement_search" model="ir.ui.view">
+        <field name="name">stocksense.movement.search</field>
+        <field name="model">stocksense.movement</field>
+        <field name="arch" type="xml">
+            <search string="Search Movements">
+                <field name="product_id"/>
+                <field name="product_sku"/>
+                <field name="source_location_id"/>
+                <field name="destination_location_id"/>
+                <field name="operation_id"/>
+                <separator/>
+                <filter string="Receipts" name="receipts" domain="[('movement_type', '=', 'receipt')]"/>
+                <filter string="Deliveries" name="deliveries" domain="[('movement_type', '=', 'delivery')]"/>
+                <filter string="Transfers" name="transfers" domain="[('movement_type', '=', 'internal')]"/>
+                <filter string="Adjustments" name="adjustments" domain="[('movement_type', 'in', ['adjustment_in', 'adjustment_out'])]"/>
+                <separator/>
+                <filter string="Today" name="today" domain="[('date', '&gt;=', (context_today()).strftime('%Y-%m-%d')), ('date', '&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Type" name="group_type" context="{'group_by': 'movement_type'}"/>
+                    <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Source" name="group_source" context="{'group_by': 'source_location_id'}"/>
+                    <filter string="Destination" name="group_dest" context="{'group_by': 'destination_location_id'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Movement Action -->
+    <record id="action_movement" model="ir.actions.act_window">
+        <field name="name">Stock Ledger</field>
+        <field name="res_model">stocksense.movement</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_movement_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No movements yet
+            </p>
+            <p>Stock movements are automatically created when inventory operations are validated.</p>
+        </field>
+    </record>
+
+</odoo>

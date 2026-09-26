@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Product Tree View -->
+    <record id="view_product_tree" model="ir.ui.view">
+        <field name="name">stocksense.product.tree</field>
+        <field name="model">stocksense.product</field>
+        <field name="arch" type="xml">
+            <tree string="Products">
+                <field name="sku"/>
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="uom"/>
+                <field name="total_stock" string="Total Stock"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Product Form View -->
+    <record id="view_product_form" model="ir.ui.view">
+        <field name="name">stocksense.product.form</field>
+        <field name="model">stocksense.product</field>
+        <field name="arch" type="xml">
+            <form string="Product">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(stocksense.action_stock)d" type="action"
+                                class="oe_stat_button" icon="fa-cubes"
+                                context="{'search_default_product_id': active_id}">
+                            <field name="total_stock" string="On Hand" widget="statinfo"/>
+                        </button>
+                    </div>
+                    <field name="image" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Product Name"/>
+                        </h1>
+                        <label for="sku"/>
+                        <h2>
+                            <field name="sku" placeholder="SKU / Internal Reference"/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group string="General">
+                            <field name="category_id"/>
+                            <field name="uom"/>
+                            <field name="barcode"/>
+                        </group>
+                        <group string="Physical">
+                            <field name="weight"/>
+                            <field name="volume"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description" placeholder="Product description..."/>
+                        </page>
+                        <page string="Stock by Location">
+                            <field name="stock_ids" readonly="1">
+                                <tree>
+                                    <field name="location_name"/>
+                                    <field name="warehouse_id"/>
+                                    <field name="quantity"/>
+                                    <field name="uom"/>
+                                    <field name="is_below_reorder" string="Low Stock"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Reorder Rules">
+                            <field name="reorder_rule_ids">
+                                <tree editable="bottom">
+                                    <field name="location_id"/>
+                                    <field name="min_quantity"/>
+                                    <field name="max_quantity"/>
+                                    <field name="reorder_quantity"/>
+                                    <field name="current_stock"/>
+                                    <field name="is_triggered" string="Alert"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Product Search View -->
+    <record id="view_product_search" model="ir.ui.view">
+        <field name="name">stocksense.product.search</field>
+        <field name="model">stocksense.product</field>
+        <field name="arch" type="xml">
+            <search string="Search Products">
+                <field name="name"/>
+                <field name="sku"/>
+                <field name="barcode"/>
+                <field name="category_id"/>
+                <filter string="In Stock" name="in_stock" domain="[('total_stock', '>', 0)]"/>
+                <separator/>
+                <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Category" name="group_category" context="{'group_by': 'category_id'}"/>
+                    <filter string="UoM" name="group_uom" context="{'group_by': 'uom'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Product Action -->
+    <record id="action_product" model="ir.actions.act_window">
+        <field name="name">Products</field>
+        <field name="res_model">stocksense.product</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_product_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first product
+            </p>
+            <p>Products are the core items tracked by StockSense inventory.</p>
+        </field>
+    </record>
+
+</odoo>

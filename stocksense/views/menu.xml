@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Root Menu
+         ════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_stocksense_root"
+              name="StockSense"
+              sequence="10"
+              web_icon="stocksense,static/description/icon.png"/>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Operations Menu
+         ════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_operations"
+              name="Operations"
+              parent="menu_stocksense_root"
+              sequence="10"/>
+
+    <menuitem id="menu_operation_all"
+              name="All Operations"
+              parent="menu_operations"
+              action="action_operation_all"
+              sequence="1"/>
+
+    <menuitem id="menu_operation_receipt"
+              name="Receipts"
+              parent="menu_operations"
+              action="action_operation_receipt"
+              sequence="10"/>
+
+    <menuitem id="menu_operation_delivery"
+              name="Deliveries"
+              parent="menu_operations"
+              action="action_operation_delivery"
+              sequence="20"/>
+
+    <menuitem id="menu_operation_internal"
+              name="Internal Transfers"
+              parent="menu_operations"
+              action="action_operation_internal"
+              sequence="30"/>
+
+    <menuitem id="menu_operation_adjustment"
+              name="Adjustments"
+              parent="menu_operations"
+              action="action_operation_adjustment"
+              sequence="40"/>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Inventory Menu
+         ════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_inventory"
+              name="Inventory"
+              parent="menu_stocksense_root"
+              sequence="20"/>
+
+    <menuitem id="menu_stock"
+              name="Stock on Hand"
+              parent="menu_inventory"
+              action="action_stock"
+              sequence="10"/>
+
+    <menuitem id="menu_movement"
+              name="Stock Ledger"
+              parent="menu_inventory"
+              action="action_movement"
+              sequence="20"/>
+
+    <menuitem id="menu_reorder_rule"
+              name="Reorder Rules"
+              parent="menu_inventory"
+              action="action_reorder_rule"
+              sequence="30"/>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Master Data Menu
+         ════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_master_data"
+              name="Master Data"
+              parent="menu_stocksense_root"
+              sequence="30"/>
+
+    <menuitem id="menu_product"
+              name="Products"
+              parent="menu_master_data"
+              action="action_product"
+              sequence="10"/>
+
+    <menuitem id="menu_category"
+              name="Categories"
+              parent="menu_master_data"
+              action="action_category"
+              sequence="20"/>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Configuration Menu
+         ════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_configuration"
+              name="Configuration"
+              parent="menu_stocksense_root"
+              sequence="90"
+              groups="stocksense.group_stocksense_manager"/>
+
+    <menuitem id="menu_warehouse"
+              name="Warehouses"
+              parent="menu_configuration"
+              action="action_warehouse"
+              sequence="10"/>
+
+    <menuitem id="menu_location"
+              name="Locations"
+              parent="menu_configuration"
+              action="action_location"
+              sequence="20"/>
+
+</odoo>

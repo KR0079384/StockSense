@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Reorder Rule Tree View -->
+    <record id="view_reorder_rule_tree" model="ir.ui.view">
+        <field name="name">stocksense.reorder.rule.tree</field>
+        <field name="model">stocksense.reorder.rule</field>
+        <field name="arch" type="xml">
+            <tree string="Reorder Rules" editable="bottom"
+                  decoration-danger="is_triggered == True">
+                <field name="product_id"/>
+                <field name="location_id"/>
+                <field name="warehouse_id"/>
+                <field name="min_quantity"/>
+                <field name="max_quantity"/>
+                <field name="reorder_quantity"/>
+                <field name="current_stock"/>
+                <field name="is_triggered" string="Alert" widget="boolean"/>
+                <field name="active" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Reorder Rule Form View -->
+    <record id="view_reorder_rule_form" model="ir.ui.view">
+        <field name="name">stocksense.reorder.rule.form</field>
+        <field name="model">stocksense.reorder.rule</field>
+        <field name="arch" type="xml">
+            <form string="Reorder Rule">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_id"/>
+                            <field name="location_id"/>
+                            <field name="warehouse_id"/>
+                        </group>
+                        <group>
+                            <field name="min_quantity"/>
+                            <field name="max_quantity"/>
+                            <field name="reorder_quantity"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Current Status">
+                            <field name="current_stock"/>
+                            <field name="is_triggered" string="Alert Triggered"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Reorder Rule Search -->
+    <record id="view_reorder_rule_search" model="ir.ui.view">
+        <field name="name">stocksense.reorder.rule.search</field>
+        <field name="model">stocksense.reorder.rule</field>
+        <field name="arch" type="xml">
+            <search string="Search Reorder Rules">
+                <field name="product_id"/>
+                <field name="location_id"/>
+                <filter string="Triggered" name="triggered" domain="[('is_triggered', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Product" name="group_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Warehouse" name="group_warehouse" context="{'group_by': 'warehouse_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Reorder Rule Action -->
+    <record id="action_reorder_rule" model="ir.actions.act_window">
+        <field name="name">Reorder Rules</field>
+        <field name="res_model">stocksense.reorder.rule</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_reorder_rule_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first reorder rule
+            </p>
+            <p>Define minimum stock levels to receive alerts when inventory runs low.</p>
+        </field>
+    </record>
+
+</odoo>

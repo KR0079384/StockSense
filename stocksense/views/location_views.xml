@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Location Tree View -->
+    <record id="view_location_tree" model="ir.ui.view">
+        <field name="name">stocksense.location.tree</field>
+        <field name="model">stocksense.location</field>
+        <field name="arch" type="xml">
+            <tree string="Locations">
+                <field name="complete_name"/>
+                <field name="location_type"/>
+                <field name="warehouse_id"/>
+                <field name="is_default"/>
+                <field name="stock_count" string="Products"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Location Form View -->
+    <record id="view_location_form" model="ir.ui.view">
+        <field name="name">stocksense.location.form</field>
+        <field name="model">stocksense.location</field>
+        <field name="arch" type="xml">
+            <form string="Location">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Location Name"/>
+                        </h1>
+                        <h2>
+                            <field name="complete_name" readonly="1"/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="location_type"/>
+                            <field name="warehouse_id"
+                                   attrs="{'required': [('location_type', '=', 'internal')], 'invisible': [('location_type', '!=', 'internal')]}"/>
+                            <field name="parent_id"/>
+                        </group>
+                        <group>
+                            <field name="is_default"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Sub-locations">
+                            <field name="child_ids">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="location_type"/>
+                                    <field name="stock_count"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Location Search View -->
+    <record id="view_location_search" model="ir.ui.view">
+        <field name="name">stocksense.location.search</field>
+        <field name="model">stocksense.location</field>
+        <field name="arch" type="xml">
+            <search string="Search Locations">
+                <field name="name"/>
+                <field name="warehouse_id"/>
+                <filter string="Internal" name="internal" domain="[('location_type', '=', 'internal')]"/>
+                <filter string="Virtual" name="virtual" domain="[('location_type', 'in', ['supplier', 'customer', 'adjustment'])]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Warehouse" name="group_warehouse" context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Type" name="group_type" context="{'group_by': 'location_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Location Action -->
+    <record id="action_location" model="ir.actions.act_window">
+        <field name="name">Locations</field>
+        <field name="res_model">stocksense.location</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_location_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new location
+            </p>
+            <p>Locations represent specific places where stock is stored within warehouses.</p>
+        </field>
+    </record>
+
+</odoo>

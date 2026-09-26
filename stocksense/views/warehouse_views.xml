@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Warehouse Tree View -->
+    <record id="view_warehouse_tree" model="ir.ui.view">
+        <field name="name">stocksense.warehouse.tree</field>
+        <field name="model">stocksense.warehouse</field>
+        <field name="arch" type="xml">
+            <tree string="Warehouses">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="lot_stock_id" string="Default Location"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Warehouse Form View -->
+    <record id="view_warehouse_form" model="ir.ui.view">
+        <field name="name">stocksense.warehouse.form</field>
+        <field name="model">stocksense.warehouse</field>
+        <field name="arch" type="xml">
+            <form string="Warehouse">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Warehouse Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="lot_stock_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Locations">
+                            <field name="location_ids">
+                                <tree>
+                                    <field name="complete_name"/>
+                                    <field name="location_type"/>
+                                    <field name="is_default"/>
+                                    <field name="stock_count" string="Products"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Address">
+                            <field name="address"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Warehouse Action -->
+    <record id="action_warehouse" model="ir.actions.act_window">
+        <field name="name">Warehouses</field>
+        <field name="res_model">stocksense.warehouse</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first warehouse
+            </p>
+            <p>Warehouses represent physical storage facilities. Default locations are created automatically.</p>
+        </field>
+    </record>
+
+</odoo>

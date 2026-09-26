@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Module Category -->
+        <record id="module_category_stocksense" model="ir.module.category">
+            <field name="name">StockSense</field>
+            <field name="description">Inventory Management System</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <!-- User Group: basic inventory operations -->
+        <record id="group_stocksense_user" model="res.groups">
+            <field name="name">User</field>
+            <field name="category_id" ref="module_category_stocksense"/>
+            <field name="comment">
+                Can view products, stock balances, and operations.
+                Can create and confirm inventory operations.
+            </field>
+        </record>
+
+        <!-- Manager Group: full control -->
+        <record id="group_stocksense_manager" model="res.groups">
+            <field name="name">Manager</field>
+            <field name="category_id" ref="module_category_stocksense"/>
+            <field name="implied_ids" eval="[(4, ref('group_stocksense_user'))]"/>
+            <field name="comment">
+                Full CRUD on all StockSense models.
+                Can cancel operations, manage reorder rules, and access all settings.
+            </field>
+        </record>
+
+    </data>
+</odoo>
