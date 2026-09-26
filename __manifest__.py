@@ -38,6 +38,7 @@ Features:
         'views/operation_views.xml',
         'views/movement_views.xml',
         'views/reorder_rule_views.xml',
+        'views/dashboard_views.xml',
         'views/menu.xml',
     ],
     'demo': [],

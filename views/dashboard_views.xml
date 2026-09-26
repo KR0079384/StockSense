@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Dashboard Form View (TransientModel, native Odoo) -->
+    <record id="view_dashboard_form" model="ir.ui.view">
+        <field name="name">stocksense.dashboard.form</field>
+        <field name="model">stocksense.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Inventory Dashboard" create="0" edit="0" delete="0">
+                <sheet>
+                    <group string="Filters">
+                        <field name="warehouse_id" options="{'no_create': True}"/>
+                        <field name="location_id" options="{'no_create': True}"/>
+                        <field name="category_id" options="{'no_create': True}"/>
+                        <field name="filter_operation_type"/>
+                        <field name="filter_state"/>
+                    </group>
+                    <group string="Stock KPIs">
+                        <div class="oe_button_box" name="stock_kpis">
+                            <button name="action_view_products_in_stock" type="object"
+                                    class="oe_stat_button" icon="fa-cubes">
+                                <field name="total_products_in_stock" string="In Stock" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_low_stock" type="object"
+                                    class="oe_stat_button" icon="fa-exclamation-triangle">
+                                <field name="low_stock_count" string="Low Stock" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_out_of_stock" type="object"
+                                    class="oe_stat_button" icon="fa-times-circle">
+                                <field name="out_of_stock_count" string="Out of Stock" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_reorder_needed" type="object"
+                                    class="oe_stat_button" icon="fa-refresh">
+                                <field name="reorder_needed_count" string="Reorder Needed" widget="statinfo"/>
+                            </button>
+                        </div>
+                    </group>
+                    <group string="Operation KPIs">
+                        <div class="oe_button_box" name="operation_kpis">
+                            <button name="action_view_pending_receipts" type="object"
+                                    class="oe_stat_button" icon="fa-download">
+                                <field name="pending_receipts_count" string="Pending Receipts" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_pending_deliveries" type="object"
+                                    class="oe_stat_button" icon="fa-upload">
+                                <field name="pending_deliveries_count" string="Pending Deliveries" widget="statinfo"/>
+                            </button>
+                            <button name="action_view_internal_transfers" type="object"
+                                    class="oe_stat_button" icon="fa-exchange">
+                                <field name="internal_transfers_scheduled_count" string="Transfers Scheduled" widget="statinfo"/>
+                            </button>
+                        </div>
+                    </group>
+                    <group string="About">
+                        <div>
+                            <p>
+                                KPIs are computed live from stock balances, operations,
+                                and reorder rules. Low-stock and reorder alerts reuse
+                                the existing <b>is_below_reorder</b> and
+                                <b>is_triggered</b> semantics. Click a KPI to open
+                                the underlying records.
+                            </p>
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Dashboard Search View: warehouse/location/category + actual types/states -->
+    <record id="view_dashboard_search" model="ir.ui.view">
+        <field name="name">stocksense.dashboard.search</field>
+        <field name="model">stocksense.dashboard</field>
+        <field name="arch" type="xml">
+            <search string="Search Dashboard">
+                <field name="warehouse_id"/>
+                <field name="location_id"/>
+                <field name="category_id"/>
+                <separator/>
+                <filter string="Receipt" name="filter_receipt"
+                        domain="[('filter_operation_type', '=', 'receipt')]"/>
+                <filter string="Delivery" name="filter_delivery"
+                        domain="[('filter_operation_type', '=', 'delivery')]"/>
+                <filter string="Internal Transfer" name="filter_internal"
+                        domain="[('filter_operation_type', '=', 'internal')]"/>
+                <filter string="Adjustment" name="filter_adjustment"
+                        domain="[('filter_operation_type', '=', 'adjustment')]"/>
+                <separator/>
+                <filter string="Draft" name="filter_draft"
+                        domain="[('filter_state', '=', 'draft')]"/>
+                <filter string="Confirmed" name="filter_confirmed"
+                        domain="[('filter_state', '=', 'confirmed')]"/>
+                <filter string="Done" name="filter_done"
+                        domain="[('filter_state', '=', 'done')]"/>
+                <filter string="Cancelled" name="filter_cancelled"
+                        domain="[('filter_state', '=', 'cancelled')]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Dashboard Action: single dashboard record, form only -->
+    <record id="action_dashboard" model="ir.actions.act_window">
+        <field name="name">Dashboard</field>
+        <field name="res_model">stocksense.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_dashboard_form"/>
+        <field name="search_view_id" ref="view_dashboard_search"/>
+        <field name="target">current</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Inventory Dashboard
+            </p>
+            <p>Live KPIs computed from stock, operations, and reorder rules.</p>
+        </field>
+    </record>
+
+</odoo>

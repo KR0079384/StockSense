@@ -8,3 +8,4 @@ from . import operation_line
 from . import movement
 from . import stock
 from . import reorder_rule
+from . import dashboard

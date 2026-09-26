@@ -17,3 +17,5 @@ access_stocksense_stock_user,stocksense.stock.user,model_stocksense_stock,group_
 access_stocksense_stock_manager,stocksense.stock.manager,model_stocksense_stock,group_stocksense_manager,1,0,0,0
 access_stocksense_reorder_rule_user,stocksense.reorder.rule.user,model_stocksense_reorder_rule,group_stocksense_user,1,0,0,0
 access_stocksense_reorder_rule_manager,stocksense.reorder.rule.manager,model_stocksense_reorder_rule,group_stocksense_manager,1,1,1,1
+access_stocksense_dashboard_user,stocksense.dashboard.user,model_stocksense_dashboard,group_stocksense_user,1,1,1,0
+access_stocksense_dashboard_manager,stocksense.dashboard.manager,model_stocksense_dashboard,group_stocksense_manager,1,1,1,0
