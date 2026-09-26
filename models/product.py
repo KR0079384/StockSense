@@ -62,6 +62,7 @@ class StockSenseProduct(models.Model):
     total_stock = fields.Float(
         string='Total Stock',
         compute='_compute_total_stock',
+        search='_search_total_stock',
         store=False,
         digits=(12, 2),
         help='Total quantity across all internal locations.',
@@ -92,6 +93,18 @@ class StockSenseProduct(models.Model):
                 ('location_id.location_type', '=', 'internal'),
             ])
             product.total_stock = sum(stocks.mapped('quantity'))
+
+    def _search_total_stock(self, operator, value):
+        matching_product_ids = []
+        for product in self.search([]):
+            if (operator in ('>', '&gt;') and product.total_stock > value) or \
+               (operator in ('>=', '&gt;=') and product.total_stock >= value) or \
+               (operator in ('<', '&lt;') and product.total_stock < value) or \
+               (operator in ('<=', '&lt;=') and product.total_stock <= value) or \
+               (operator in ('=', '==') and product.total_stock == value) or \
+               (operator in ('!=', '<>') and product.total_stock != value):
+                matching_product_ids.append(product.id)
+        return [('id', 'in', matching_product_ids)]
 
     @api.constrains('weight')
     def _check_weight(self):
